@@ -30,6 +30,17 @@ Ce dépôt contient le travail pratique du cours **INF2205 — Technologies du W
 - Docker
 - Postman
 
+## Ports
+
+| Application | Port |
+|---|---:|
+| Keycloak | 8080 |
+| API Gateway | 8081 |
+| ms-produits | 8082 |
+| ms-commandes | 8083 |
+| Eureka Server | 8761 |
+| Config Server | 8888 |
+
 ## Statut
 
 🚧 TP en cours de réalisation.
