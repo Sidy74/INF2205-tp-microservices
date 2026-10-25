@@ -1,0 +1,15 @@
+spring:
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          routes:
+            - id: ms-produits
+              uri: lb://ms-produits
+              predicates:
+                - Path=/api/produits/**
+
+            - id: ms-commandes
+              uri: lb://ms-commandes
+              predicates:
+                - Path=/api/commandes/**
