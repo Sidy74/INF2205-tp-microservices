@@ -202,23 +202,40 @@ Le **Config Server** utilise ce dépôt de configuration afin de fournir les par
 
 ## Sécurité
 
-La sécurisation de l'architecture est prévue avec **Keycloak**.
+La sécurisation de l'architecture est mise en place avec **Keycloak** et **OAuth2/JWT**.
 
-Le projet utilise le realm :
+### Realm
 
 ```text
 gestion-commerciale
 ```
 
-Les rôles prévus sont :
+### Client
 
 ```text
-CLIENT
-GESTIONNAIRE
-ADMIN
+gestion-commerciale-app
 ```
 
-Les informations sensibles telles que les mots de passe ne doivent pas être stockées dans le dépôt Git.
+### Rôles
+
+- `CLIENT`
+- `GESTIONNAIRE`
+- `ADMIN`
+
+### Politique d'accès
+
+| Fonctionnalité | CLIENT | GESTIONNAIRE | ADMIN |
+|---|:---:|:---:|:---:|
+| Consulter les produits | ✅ | ✅ | ✅ |
+| Créer un produit | ❌ | ✅ | ✅ |
+| Modifier un produit | ❌ | ✅ | ✅ |
+| Supprimer un produit | ❌ | ❌ | ✅ |
+| Créer une commande | ✅ | ❌ | ❌ |
+| Consulter les commandes | ❌ | ✅ | ✅ |
+
+L'API Gateway valide les JWT émis par Keycloak et extrait les rôles depuis `realm_access.roles`.
+
+Les informations sensibles, notamment les mots de passe et secrets, ne sont pas stockées dans le dépôt Git.
 
 Le fichier local :
 
@@ -234,7 +251,7 @@ Un modèle :
 .env.example
 ```
 
-est fourni afin de faciliter la configuration du projet.
+est fourni pour faciliter la configuration du projet.
 
 ---
 
@@ -252,10 +269,12 @@ est fourni afin de faciliter la configuration du projet.
 - [x] Création des commandes
 - [x] Consultation des commandes
 - [x] Modification du statut des commandes
-- [ ] API Gateway
-- [ ] Configuration de Keycloak
-- [ ] Sécurisation des endpoints
-- [ ] Tests Postman complets
+- [x] Mise en place de l'API Gateway
+- [x] Configuration de Keycloak
+- [x] Sécurisation des endpoints du Gateway avec OAuth2/JWT
+- [x] Gestion des rôles `CLIENT`, `GESTIONNAIRE` et `ADMIN`
+- [x] Contrôle des autorisations selon les rôles
+- [x] Tests des accès autorisés et refusés
 
 ---
 
@@ -273,6 +292,18 @@ Consultation des produits :
 
 ```http
 GET /api/produits
+```
+
+Modification d'un produit :
+
+```http
+PUT /api/produits/{id}
+```
+
+Suppression d'un produit :
+
+```http
+DELETE /api/produits/{id}
 ```
 
 ### Commandes
@@ -301,30 +332,22 @@ Modification du statut :
 PATCH /api/commandes/{id}/statut?statut=VALIDEE
 ```
 
+### Tests de sécurité
+
+Les principaux scénarios de sécurité ont été validés :
+
+- Requête sans token → `401 Unauthorized`
+- CLIENT → consultation des produits → `200 OK`
+- CLIENT → suppression d'un produit → `403 Forbidden`
+- CLIENT → création d'une commande → `201 Created`
+- CLIENT → consultation des commandes → `403 Forbidden`
+- GESTIONNAIRE → consultation des commandes → `200 OK`
+- GESTIONNAIRE → création d'un produit → `201 Created`
+- GESTIONNAIRE → modification d'un produit → `200 OK`
+- GESTIONNAIRE → suppression d'un produit → `403 Forbidden`
+- ADMIN → suppression d'un produit → `204 No Content`
+
 La communication entre `ms-commandes` et `ms-produits` a été validée avec **OpenFeign + Eureka**.
-
----
-
-## Documentation de démarrage
-
-Pour installer et lancer le projet étape par étape, consulter :
-
-```text
-START-README.md
-```
-
-Ce fichier contient notamment :
-
-- les prérequis ;
-- le clonage du projet ;
-- la configuration du fichier `.env` ;
-- le démarrage de PostgreSQL ;
-- le démarrage du Config Server ;
-- le démarrage d'Eureka ;
-- le démarrage des microservices ;
-- la vérification de l'enregistrement dans Eureka ;
-- les commandes de test ;
-- l'arrêt de l'application.
 
 ---
 
@@ -332,12 +355,20 @@ Ce fichier contient notamment :
 
 🚧 **TP en cours de réalisation**
 
-Les microservices principaux, la communication inter-services, la découverte de services, la configuration centralisée et les bases PostgreSQL sont fonctionnels.
+Les éléments suivants sont actuellement fonctionnels :
 
-Les prochaines étapes sont :
+- les microservices `ms-produits` et `ms-commandes` ;
+- les bases PostgreSQL indépendantes ;
+- la configuration centralisée avec Config Server ;
+- la découverte de services avec Eureka ;
+- la communication inter-services avec OpenFeign ;
+- l'API Gateway ;
+- l'authentification avec Keycloak ;
+- la gestion des rôles et autorisations au niveau du Gateway.
 
-1. Mise en place de l'API Gateway.
-2. Configuration de Keycloak.
-3. Sécurisation des endpoints.
-4. Tests complets de l'architecture.
-5. Finalisation de la documentation.
+### Prochaines étapes
+
+1. Sécurisation directe de `ms-produits`.
+2. Sécurisation directe de `ms-commandes`.
+3. Tests complets de l'architecture.
+4. Finalisation de la documentation et des livrables du TP.
