@@ -1,0 +1,30 @@
+services:
+  postgres-produits:
+    image: postgres:17
+    container_name: postgres-produits
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ms_produits_db
+      POSTGRES_USER: fst_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-produits-data:/var/lib/postgresql/data
+
+  postgres-commandes:
+    image: postgres:17
+    container_name: postgres-commandes
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ms_commandes_db
+      POSTGRES_USER: fst_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-commandes-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-produits-data:
+  postgres-commandes-data:

@@ -15,12 +15,27 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class CommandeService {
     private final CommandeRepository commandeRepository;
     private final ProduitClient produitClient;
+
+    private String genererNumeroCommande() {
+        String numero;
+
+        do {
+            numero = "CMD-" +
+                    UUID.randomUUID()
+                            .toString()
+                            .substring(0, 8)
+                            .toUpperCase();
+        } while (commandeRepository.findByNumero(numero).isPresent());
+
+        return numero;
+    }
 
     public CommandeDTO creer(CommandeDTO demande) {
 
@@ -64,7 +79,7 @@ public class CommandeService {
 
         Commande commande = new Commande();
 
-        commande.setNumero(demande.getNumero());
+        commande.setNumero(genererNumeroCommande());
         commande.setClientId(demande.getClientId());
         commande.setDateCommande(LocalDateTime.now());
         commande.setStatut(StatutCommande.EN_ATTENTE);
@@ -105,14 +120,14 @@ public class CommandeService {
     }
 
     public CommandeDTO obtenirParId(Long id) {
-        Commande commande = commandeRepository.findById(id)
+        Commande commande = commandeRepository.findByIdAvecLignes(id)
                 .orElseThrow(() -> new CommandeNotFoundException(id));
 
         return convertirEnDTO(commande);
     }
 
     public List<CommandeDTO> lister() {
-        return commandeRepository.findAll()
+        return commandeRepository.findAllAvecLignes()
                 .stream()
                 .map(this::convertirEnDTO)
                 .toList();
