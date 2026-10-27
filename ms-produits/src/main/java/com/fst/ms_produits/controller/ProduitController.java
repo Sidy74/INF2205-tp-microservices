@@ -29,10 +29,6 @@ public class ProduitController {
 
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<ProduitResponseDto> obtenirParId(@PathVariable Long id) {
-        return ResponseEntity.ok(produitService.obtenirParId(id));
-    }
     @GetMapping
     public ResponseEntity<List<ProduitResponseDto>> lister() {
         return ResponseEntity.ok(produitService.lister());
@@ -44,7 +40,15 @@ public class ProduitController {
 
         return ResponseEntity.ok(produitService.rechercher(nom));
     }
+    @GetMapping("/actifs")
+    public ResponseEntity<List<ProduitResponseDto>> listerActifs() {
+        return ResponseEntity.ok(produitService.listerActifs());
+    }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ProduitResponseDto> obtenirParId(@PathVariable Long id) {
+        return ResponseEntity.ok(produitService.obtenirParId(id));
+    }
     @PutMapping("/{id}")
     public ResponseEntity<ProduitResponseDto> modifier(
             @PathVariable Long id,
