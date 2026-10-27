@@ -21,6 +21,8 @@ Microservice de gestion du catalogue des produits dans le cadre du TP **INF2205 
 - Spring Boot 4.1.2
 - Spring Web
 - Spring Data JPA
+- Spring Security
+- OAuth2 Resource Server
 - PostgreSQL
 - Spring Cloud
 - Eureka Discovery Client
@@ -36,7 +38,34 @@ Microservice de gestion du catalogue des produits dans le cadre du TP **INF2205 
 
 - **Spring Cloud Config Client** pour récupérer sa configuration centralisée ;
 - **Eureka Discovery Client** pour s'enregistrer auprès d'Eureka ;
-- **PostgreSQL** pour la persistance des produits.
+- **PostgreSQL** pour la persistance des produits ;
+- **Keycloak** comme serveur d'authentification et d'émission des JWT ;
+- **Spring Security OAuth2 Resource Server** pour valider directement les JWT.
+
+```text
+                         Keycloak
+                       Port : 8080
+                            |
+                            | JWT
+                            v
+                    +----------------+
+                    |  API Gateway   |
+                    |   Port : 8081  |
+                    +----------------+
+                            |
+                            v
+                    +----------------+
+                    |  ms-produits   |
+                    |   Port : 8082  |
+                    +----------------+
+                       |          |
+                       |          |
+                       v          v
+                PostgreSQL     Eureka
+                 Port 5433    Port 8761
+```
+
+La configuration de `ms-produits` est récupérée depuis le **Config Server** :
 
 ```text
 Config Server : 8888
@@ -52,6 +81,57 @@ ms-produits
      v
 Eureka Server : 8761
 ```
+
+## Sécurité
+
+La sécurité est basée sur **Keycloak**, OAuth2 et JWT.
+
+### Keycloak
+
+Realm utilisé :
+
+```text
+gestion-commerciale
+```
+
+Rôles :
+
+- `CLIENT`
+- `GESTIONNAIRE`
+- `ADMIN`
+
+`ms-produits` est configuré comme **OAuth2 Resource Server**.
+
+Il valide directement les JWT émis par Keycloak à partir de l'issuer :
+
+```text
+http://localhost:8080/realms/gestion-commerciale
+```
+
+Les rôles présents dans `realm_access.roles` du JWT sont convertis en autorités Spring Security.
+
+### Autorisations
+
+| Opération | CLIENT | GESTIONNAIRE | ADMIN |
+|---|:---:|:---:|:---:|
+| Consulter les produits | ✅ | ✅ | ✅ |
+| Créer un produit | ❌ | ✅ | ✅ |
+| Modifier un produit | ❌ | ✅ | ✅ |
+| Supprimer un produit | ❌ | ❌ | ✅ |
+
+Les requêtes sans JWT valide sont refusées avec :
+
+```text
+401 Unauthorized
+```
+
+Un utilisateur authentifié mais ne possédant pas le rôle requis reçoit :
+
+```text
+403 Forbidden
+```
+
+> Les mots de passe, tokens JWT et autres informations sensibles ne sont pas stockés dans le dépôt Git.
 
 ## Modèle Produit
 
@@ -69,61 +149,40 @@ Un produit contient notamment :
 
 ## Endpoints
 
-| Méthode | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/produits` | Créer un produit |
-| `GET` | `/api/produits` | Lister les produits |
-| `GET` | `/api/produits/{id}` | Obtenir un produit |
-| `GET` | `/api/produits/actifs` | Lister les produits actifs |
-| `GET` | `/api/produits/recherche?nom=...` | Rechercher par nom |
-| `GET` | `/api/produits/{id}/disponible?quantite=...` | Vérifier la disponibilité |
-| `PUT` | `/api/produits/{id}` | Modifier un produit |
-| `DELETE` | `/api/produits/{id}` | Supprimer un produit |
+| Méthode | Endpoint | Description | Accès |
+|---|---|---|---|
+| `POST` | `/api/produits` | Créer un produit | GESTIONNAIRE / ADMIN |
+| `GET` | `/api/produits` | Lister les produits | CLIENT / GESTIONNAIRE / ADMIN |
+| `GET` | `/api/produits/{id}` | Obtenir un produit | CLIENT / GESTIONNAIRE / ADMIN |
+| `GET` | `/api/produits/actifs` | Lister les produits actifs | CLIENT / GESTIONNAIRE / ADMIN |
+| `GET` | `/api/produits/recherche?nom=...` | Rechercher par nom | CLIENT / GESTIONNAIRE / ADMIN |
+| `GET` | `/api/produits/{id}/disponible?quantite=...` | Vérifier la disponibilité | CLIENT / GESTIONNAIRE / ADMIN |
+| `PUT` | `/api/produits/{id}` | Modifier un produit | GESTIONNAIRE / ADMIN |
+| `DELETE` | `/api/produits/{id}` | Supprimer un produit | ADMIN |
 
-## Exemples
+## Architecture de sécurité
 
-### Créer un produit
-
-```bash
-curl -X POST http://localhost:8082/api/produits \
-  -H "Content-Type: application/json" \
-  -d '{
-    "reference": "P001",
-    "nom": "Ordinateur portable",
-    "description": "Ordinateur de test",
-    "prix": 500000,
-    "quantiteStock": 10,
-    "actif": true
-  }'
-```
-
-### Lister les produits
-
-```bash
-curl http://localhost:8082/api/produits
-```
-
-### Vérifier la disponibilité
-
-```bash
-curl "http://localhost:8082/api/produits/1/disponible?quantite=2"
-```
-
-> Remplacer `1` par l'identifiant réel du produit.
-
-## Port
-
-Le microservice écoute sur :
+Le Gateway constitue le point d'entrée normal de l'application, mais `ms-produits` ne fait pas aveuglément confiance aux requêtes provenant du Gateway.
 
 ```text
-8082
+Client
+   |
+   | JWT
+   v
+API Gateway
+   |
+   | Validation JWT + rôles
+   |
+   v
+ms-produits
+   |
+   | Validation JWT
+   |
+   v
+PostgreSQL
 ```
 
-URL locale :
-
-```text
-http://localhost:8082
-```
+Cette double validation permet également de protéger le microservice contre un accès direct contournant le Gateway.
 
 ## Base de données
 
@@ -145,8 +204,48 @@ Le microservice utilise un gestionnaire global des exceptions pour notamment gé
 - référence de produit déjà existante : `409 CONFLICT` ;
 - données de produit invalides : `400 BAD REQUEST`.
 
+## Tests de sécurité
+
+Les principaux scénarios testés sont :
+
+- requête sans token → `401 Unauthorized` ;
+- CLIENT → consultation des produits autorisée ;
+- CLIENT → création/modification/suppression refusée selon les règles ;
+- GESTIONNAIRE → création et modification autorisées ;
+- GESTIONNAIRE → suppression refusée ;
+- ADMIN → suppression autorisée.
+
+## Port
+
+Le microservice écoute sur :
+
+```text
+8082
+```
+
+URL locale directe :
+
+```text
+http://localhost:8082
+```
+
+En utilisation normale, les requêtes passent par l'API Gateway :
+
+```text
+http://localhost:8081
+```
+
 ## État
 
 ✅ **Fonctionnel**
 
-Les fonctionnalités principales du microservice sont opérationnelles et le service est enregistré auprès d'Eureka.
+Les fonctionnalités principales du microservice sont opérationnelles.
+
+Le service :
+
+- est enregistré auprès d'Eureka ;
+- récupère sa configuration via Config Server ;
+- utilise PostgreSQL ;
+- est protégé par Spring Security ;
+- valide les JWT émis par Keycloak ;
+- applique les autorisations selon les rôles `CLIENT`, `GESTIONNAIRE` et `ADMIN`.
