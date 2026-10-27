@@ -8,10 +8,10 @@ import lombok.Setter;
 @Getter
 @Setter
 public class LigneCommandeDTO {
-    @NotNull
+    @NotNull(message = "Le produit est obligatoire")
     private Long produitId;
 
-    @NotNull
-    @Positive
+    @NotNull(message = "La quantité est obligatoire")
+    @Positive(message = "La quantité doit être supérieure à 0")
     private Integer quantite;
 }
