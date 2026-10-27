@@ -1,185 +1,331 @@
-# INF2205 — TP Microservices
+# INF2205 — TP Microservices avec Spring Boot
 
-## Mise en place d'une architecture microservices avec Spring Boot
+## 📌 Présentation
 
-Ce dépôt contient le travail pratique du cours **INF2205 — Technologies du Web** portant sur la conception et la mise en œuvre d'une architecture microservices avec **Spring Boot** et **Spring Cloud**.
+Ce projet est réalisé dans le cadre du TP **INF2205 — Technologies du Web**.
 
-L'objectif du projet est de mettre en place une architecture composée de plusieurs microservices indépendants communiquant entre eux, avec découverte de services, configuration centralisée, API Gateway et sécurisation avec Keycloak.
+L'objectif est de mettre en place une architecture **microservices** avec **Spring Boot** et **Spring Cloud**, permettant de gérer des produits et des commandes dans une architecture distribuée.
 
----
+L'application est composée de plusieurs services indépendants communiquant entre eux à travers une architecture basée sur :
 
-## Architecture
+- Spring Boot
+- Spring Cloud
+- Eureka Server
+- Spring Cloud Config
+- OpenFeign
+- Spring Cloud Gateway
+- Keycloak
+- PostgreSQL
+- Docker / Docker Compose
 
-L'architecture du projet est composée des éléments suivants :
-
-- **ms-produits** — gestion du catalogue des produits
-- **ms-commandes** — gestion des commandes
-- **Eureka Server** — découverte et enregistrement des services
-- **OpenFeign** — communication entre les microservices
-- **Config Server** — centralisation de la configuration
-- **API Gateway** — point d'entrée unique de l'application
-- **Keycloak** — authentification et gestion des rôles
-- **PostgreSQL** — bases de données des microservices
-
-### Communication entre les services
+L'architecture respecte le principe suivant :
 
 ```text
-                         ┌─────────────────┐
-                         │    Keycloak     │
-                         │      :8080      │
-                         └─────────────────┘
-                                  │
-                                  │ Authentification
-                                  ▼
-┌───────────────┐        ┌─────────────────┐
-│    Client     │ ─────► │   API Gateway   │
-│ Postman / Web │        │      :8081      │
-└───────────────┘        └────────┬────────┘
-                                  │
-                    ┌─────────────┴─────────────┐
-                    ▼                           ▼
-          ┌─────────────────┐         ┌─────────────────┐
-          │  ms-produits    │         │  ms-commandes   │
-          │      :8082      │◄────────│      :8083      │
-          └────────┬────────┘ OpenFeign └────────┬──────┘
-                   │                            │
-                   ▼                            ▼
-          ┌─────────────────┐         ┌─────────────────┐
-          │ PostgreSQL      │         │ PostgreSQL      │
-          │ produits :5433  │         │ commandes :5434 │
-          └─────────────────┘         └─────────────────┘
+                         ┌───────────────┐
+                         │   Keycloak    │
+                         │     :8080     │
+                         └───────┬───────┘
+                                 │ JWT
+                                 ▼
+┌──────────────┐        ┌─────────────────┐
+│   Client /   │───────▶│   API Gateway   │
+│   Postman    │        │      :8081      │
+└──────────────┘        └────────┬────────┘
+                                 │
+                    ┌────────────┴────────────┐
+                    │                         │
+                    ▼                         ▼
+          ┌─────────────────┐       ┌─────────────────┐
+          │   ms-produits   │       │   ms-commandes  │
+          │      :8082      │◀──────│      :8083      │
+          └────────┬────────┘ Feign └────────┬────────┘
+                   │                         │
+                   ▼                         ▼
+          ┌─────────────────┐       ┌─────────────────┐
+          │ PostgreSQL      │       │ PostgreSQL      │
+          │ produits :5433  │       │ commandes :5434 │
+          └─────────────────┘       └─────────────────┘
 
-                     ┌─────────────────┐
-                     │ Eureka Server   │
-                     │      :8761      │
-                     └─────────────────┘
+                    ┌─────────────────────┐
+                    │    Eureka Server    │
+                    │        :8761        │
+                    └─────────────────────┘
 
-                     ┌─────────────────┐
-                     │ Config Server   │
-                     │      :8888      │
-                     └─────────────────┘
+                    ┌─────────────────────┐
+                    │    Config Server    │
+                    │        :8888        │
+                    └─────────────────────┘
 ```
-
-> `ms-commandes` ne communique pas directement avec la base de données de `ms-produits`. Les informations sur les produits sont récupérées via **OpenFeign**, en utilisant **Eureka** pour la découverte du service.
 
 ---
 
-## Technologies
+## 🎯 Objectifs
 
-- **Java 21**
-- **Spring Boot 4.1.2**
-- **Spring Cloud 2025.1.4**
+Le projet permet de mettre en pratique les principaux concepts d'une architecture microservices :
+
+- séparation des responsabilités ;
+- découverte dynamique des services ;
+- configuration centralisée ;
+- communication entre microservices ;
+- routage via une API Gateway ;
+- authentification et autorisation ;
+- gestion des rôles ;
+- validation des données ;
+- gestion centralisée des erreurs ;
+- conteneurisation des bases de données ;
+- tests des différents scénarios fonctionnels et de sécurité.
+
+---
+
+## 🧩 Architecture
+
+Le projet contient les composants suivants :
+
+| Composant | Rôle | Port |
+|---|---|---:|
+| Keycloak | Authentification / autorisation | `8080` |
+| API Gateway | Point d'entrée unique | `8081` |
+| ms-produits | Gestion des produits | `8082` |
+| ms-commandes | Gestion des commandes | `8083` |
+| Config Server | Configuration centralisée | `8888` |
+| Eureka Server | Découverte des services | `8761` |
+| PostgreSQL produits | Base de données produits | `5433` |
+| PostgreSQL commandes | Base de données commandes | `5434` |
+
+---
+
+## 🛠️ Technologies utilisées
+
+### Backend
+
+- Java 21
+- Spring Boot 4.1.2
 - Spring Web
 - Spring Data JPA
 - Spring Validation
+- Spring Security
+- Spring Boot Actuator
+
+### Spring Cloud
+
 - Spring Cloud Config
 - Spring Cloud Netflix Eureka
 - Spring Cloud OpenFeign
 - Spring Cloud Gateway
-- PostgreSQL 17
+
+### Sécurité
+
 - Keycloak
-- Maven
+- OAuth2
+- JWT
+- Spring Security Resource Server
+
+### Base de données
+
+- PostgreSQL 17
+
+### Infrastructure
+
 - Docker
 - Docker Compose
+
+### Tests et outils
+
 - Postman
+- cURL
+- Maven
 - Git / GitHub
 
 ---
 
-## Structure du projet
+## 📁 Structure du projet
 
 ```text
 INF2205-tp-microservices/
 │
-├── README.md
-├── START-README.md
-├── .gitignore
-├── .env.example
-├── docker-compose.yml
-│
-├── ms-produits/
-│   └── ...
-│
-├── ms-commandes/
-│   └── ...
-│
-├── eureka-server/
+├── api-gateway/
+│   ├── src/
+│   ├── pom.xml
 │   └── ...
 │
 ├── config-server/
+│   ├── src/
+│   ├── pom.xml
 │   └── ...
 │
 ├── config-repo/
 │   ├── application.yml
-│   ├── ms-produits.yml
-│   ├── ms-commandes.yml
 │   ├── api-gateway.yml
-│   └── eureka-server.yml
+│   ├── eureka-server.yml
+│   ├── ms-commandes.yml
+│   └── ms-produits.yml
 │
-└── postman/
-    └── INF2205-microservices.postman_collection.json
+├── eureka-server/
+│   ├── src/
+│   ├── pom.xml
+│   └── ...
+│
+├── ms-produits/
+│   ├── src/
+│   ├── pom.xml
+│   ├── README.md
+│   └── ...
+│
+├── ms-commandes/
+│   ├── src/
+│   ├── pom.xml
+│   ├── README.md
+│   └── ...
+│
+├── postman/
+│   └── INF2205-microservices.postman_collection.json
+│
+├── docker-compose.yml
+├── .env.example
+├── README.md
+└── START-README.md
 ```
 
 ---
 
-## Ports
+# 📦 Microservice `ms-produits`
 
-| Application | Port |
-|---|---:|
-| Keycloak | `8080` |
-| API Gateway | `8081` |
-| ms-produits | `8082` |
-| ms-commandes | `8083` |
-| Eureka Server | `8761` |
-| Config Server | `8888` |
-| PostgreSQL produits | `5433` |
-| PostgreSQL commandes | `5434` |
+Le microservice `ms-produits` est responsable de la gestion du catalogue des produits.
 
----
+## Fonctionnalités
 
-## PostgreSQL avec Docker
+- créer un produit ;
+- consulter un produit ;
+- lister les produits ;
+- rechercher un produit par nom ;
+- lister les produits actifs ;
+- modifier un produit ;
+- supprimer un produit ;
+- vérifier la disponibilité d'un produit.
 
-Le projet utilise **Docker Compose** pour lancer deux bases PostgreSQL indépendantes.
-
-| Service | Base de données | Port hôte | Port PostgreSQL |
-|---|---|---:|---:|
-| PostgreSQL produits | `ms_produits_db` | `5433` | `5432` |
-| PostgreSQL commandes | `ms_commandes_db` | `5434` | `5432` |
-
-Chaque microservice possède ainsi sa propre base de données.
-
-### Démarrer PostgreSQL
-
-Depuis la racine du projet :
-
-```bash
-docker compose up -d
-```
-
-### Vérifier les conteneurs
-
-```bash
-docker ps
-```
-
-### Arrêter PostgreSQL
-
-```bash
-docker compose down
-```
-
-Les données sont conservées dans les volumes Docker :
+## Endpoints principaux
 
 ```text
-postgres-produits-data
-postgres-commandes-data
+POST   /api/produits
+GET    /api/produits
+GET    /api/produits/{id}
+GET    /api/produits/recherche?nom=...
+GET    /api/produits/actifs
+PUT    /api/produits/{id}
+DELETE /api/produits/{id}
+GET    /api/produits/{id}/disponible?quantite=...
+```
+
+## Modèle produit
+
+Un produit contient notamment :
+
+```text
+id
+reference
+nom
+description
+prix
+quantiteStock
+actif
+```
+
+Les données sont stockées dans une base PostgreSQL dédiée.
+
+---
+
+# 🛒 Microservice `ms-commandes`
+
+Le microservice `ms-commandes` est responsable de la gestion des commandes.
+
+Une commande contient plusieurs lignes de commande.
+
+## Fonctionnalités
+
+- créer une commande ;
+- consulter une commande ;
+- lister les commandes ;
+- modifier le statut d'une commande ;
+- vérifier l'existence du produit ;
+- vérifier que le produit est actif ;
+- vérifier la disponibilité du stock ;
+- récupérer le prix depuis `ms-produits` ;
+- calculer le montant total ;
+- gérer les erreurs lorsque `ms-produits` est indisponible.
+
+## Endpoints principaux
+
+```text
+POST  /api/commandes
+GET   /api/commandes
+GET   /api/commandes/{id}
+PATCH /api/commandes/{id}/statut?statut=...
 ```
 
 ---
 
-## Configuration
+# 🔗 Communication avec OpenFeign
 
-Les configurations communes et spécifiques aux microservices sont centralisées dans le dossier :
+`ms-commandes` ne possède pas directement les données de `ms-produits`.
+
+Il communique avec `ms-produits` à travers **OpenFeign**.
+
+```text
+ms-commandes
+     │
+     │ OpenFeign
+     ▼
+ms-produits
+     │
+     ▼
+PostgreSQL produits
+```
+
+Le client Feign permet notamment de :
+
+- récupérer les informations d'un produit ;
+- vérifier sa disponibilité.
+
+La découverte de `ms-produits` est réalisée grâce à Eureka.
+
+```java
+@FeignClient(name = "ms-produits")
+public interface ProduitClient {
+    ...
+}
+```
+
+Cette approche permet d'éviter un accès direct de `ms-commandes` à la base de données de `ms-produits`.
+
+---
+
+# 🔎 Eureka Server
+
+Eureka joue le rôle de **service discovery**.
+
+Les services suivants s'enregistrent auprès d'Eureka :
+
+```text
+MS-PRODUITS
+MS-COMMANDES
+API-GATEWAY
+```
+
+Eureka permet aux services de se retrouver dynamiquement sans dépendre directement d'une adresse IP fixe.
+
+Interface :
+
+```text
+http://localhost:8761
+```
+
+---
+
+# ⚙️ Config Server
+
+Le **Spring Cloud Config Server** centralise la configuration des différents services.
+
+Les configurations sont stockées dans :
 
 ```text
 config-repo/
@@ -188,187 +334,378 @@ config-repo/
 Fichiers principaux :
 
 ```text
-config-repo/
-├── application.yml
-├── ms-produits.yml
-├── ms-commandes.yml
-├── api-gateway.yml
-└── eureka-server.yml
+application.yml
+ms-produits.yml
+ms-commandes.yml
+api-gateway.yml
+eureka-server.yml
 ```
 
-Le **Config Server** utilise ce dépôt de configuration afin de fournir les paramètres nécessaires aux différents services.
+Le Config Server fonctionne sur :
+
+```text
+http://localhost:8888
+```
+
+Cette architecture évite de dupliquer la configuration dans chaque microservice.
 
 ---
 
-## Sécurité
+# 🌐 API Gateway
 
-La sécurisation de l'architecture est mise en place avec **Keycloak** et **OAuth2/JWT**.
+L'API Gateway constitue le point d'entrée principal de l'application.
 
-### Realm
+Les clients n'ont pas besoin d'appeler directement les microservices.
+
+### Produits
+
+```text
+/api/produits/**
+        ↓
+ms-produits
+```
+
+### Commandes
+
+```text
+/api/commandes/**
+        ↓
+ms-commandes
+```
+
+Les routes utilisent la découverte Eureka :
+
+```text
+lb://ms-produits
+lb://ms-commandes
+```
+
+L'API Gateway est accessible sur :
+
+```text
+http://localhost:8081
+```
+
+---
+
+# 🔐 Sécurité avec Keycloak
+
+L'authentification et l'autorisation sont assurées par **Keycloak**.
+
+Le projet utilise le realm :
 
 ```text
 gestion-commerciale
 ```
 
-### Client
+Client :
 
 ```text
 gestion-commerciale-app
 ```
 
-### Rôles
+## Rôles
 
-- `CLIENT`
-- `GESTIONNAIRE`
-- `ADMIN`
+Trois rôles sont utilisés :
 
-### Politique d'accès
+```text
+CLIENT
+GESTIONNAIRE
+ADMIN
+```
 
-| Fonctionnalité | CLIENT | GESTIONNAIRE | ADMIN |
+Les utilisateurs authentifiés obtiennent un token JWT contenant leurs rôles.
+
+Les microservices utilisent ce token pour contrôler l'accès aux ressources.
+
+---
+
+## 🔑 Autorisations
+
+### Produits
+
+| Opération | CLIENT | GESTIONNAIRE | ADMIN |
 |---|:---:|:---:|:---:|
-| Consulter les produits | ✅ | ✅ | ✅ |
-| Créer un produit | ❌ | ✅ | ✅ |
-| Modifier un produit | ❌ | ✅ | ✅ |
-| Supprimer un produit | ❌ | ❌ | ✅ |
-| Créer une commande | ✅ | ❌ | ❌ |
-| Consulter les commandes | ❌ | ✅ | ✅ |
+| Consulter | ✅ | ✅ | ✅ |
+| Créer | ❌ | ✅ | ✅ |
+| Modifier | ❌ | ✅ | ✅ |
+| Supprimer | ❌ | ❌ | ✅ |
 
-L'API Gateway valide les JWT émis par Keycloak et extrait les rôles depuis `realm_access.roles`.
+### Commandes
 
-Les informations sensibles, notamment les mots de passe et secrets, ne sont pas stockées dans le dépôt Git.
+| Opération | CLIENT | GESTIONNAIRE | ADMIN |
+|---|:---:|:---:|:---:|
+| Créer | ✅ | ❌ | ❌ |
+| Consulter | ❌ | ✅ | ✅ |
+| Modifier le statut | ❌ | ✅ | ✅ |
 
-Le fichier local :
+---
+
+# 🗄️ Bases de données
+
+Chaque microservice possède sa propre base de données.
+
+```text
+ms-produits
+     │
+     ▼
+ms_produits_db
+     │
+     └── PostgreSQL :5433
+```
+
+```text
+ms-commandes
+     │
+     ▼
+ms_commandes_db
+     │
+     └── PostgreSQL :5434
+```
+
+Cette séparation respecte le principe :
+
+> Une base de données par microservice.
+
+`ms-commandes` ne doit donc pas accéder directement à la base de `ms-produits`.
+
+---
+
+# 🐳 Docker
+
+Docker Compose est utilisé pour lancer l'infrastructure PostgreSQL et Keycloak.
+
+Les services Docker sont :
+
+```text
+postgres-produits
+postgres-commandes
+keycloak
+```
+
+Le fichier principal est :
+
+```text
+docker-compose.yml
+```
+
+Les variables sensibles sont stockées localement dans :
 
 ```text
 .env
 ```
 
-est ignoré par Git.
-
-Un modèle :
+Un fichier modèle est fourni :
 
 ```text
 .env.example
 ```
 
-est fourni pour faciliter la configuration du projet.
+Le fichier `.env` n'est pas versionné dans Git.
 
 ---
 
-## Fonctionnalités réalisées
+# 🧪 Tests
 
-- [x] Création du microservice `ms-produits`
-- [x] Création du microservice `ms-commandes`
-- [x] Configuration PostgreSQL avec Docker Compose
-- [x] Configuration centralisée avec Spring Cloud Config
-- [x] Mise en place d'Eureka Server
-- [x] Enregistrement des microservices dans Eureka
-- [x] Communication entre `ms-commandes` et `ms-produits` avec OpenFeign
-- [x] Gestion des produits
-- [x] Vérification de la disponibilité des produits
-- [x] Création des commandes
-- [x] Consultation des commandes
-- [x] Modification du statut des commandes
-- [x] Mise en place de l'API Gateway
-- [x] Configuration de Keycloak
-- [x] Sécurisation des endpoints du Gateway avec OAuth2/JWT
-- [x] Gestion des rôles `CLIENT`, `GESTIONNAIRE` et `ADMIN`
-- [x] Contrôle des autorisations selon les rôles
-- [x] Tests des accès autorisés et refusés
+Les tests ont été réalisés principalement à travers l'API Gateway.
+
+URL principale :
+
+```text
+http://localhost:8081
+```
+
+## Produits
+
+Les scénarios suivants ont été vérifiés :
+
+- accès sans token ;
+- consultation avec CLIENT ;
+- consultation avec GESTIONNAIRE ;
+- consultation avec ADMIN ;
+- récupération d'un produit existant ;
+- récupération d'un produit inexistant ;
+- création avec GESTIONNAIRE ;
+- création avec CLIENT ;
+- modification avec GESTIONNAIRE ;
+- modification avec CLIENT ;
+- suppression avec GESTIONNAIRE ;
+- suppression avec ADMIN ;
+- recherche par nom ;
+- consultation des produits actifs.
+
+## Commandes
+
+Les scénarios suivants ont été vérifiés :
+
+- création d'une commande valide ;
+- création avec un produit inexistant ;
+- quantité négative ;
+- quantité nulle ;
+- vérification du stock ;
+- récupération des commandes ;
+- modification du statut ;
+- contrôle des rôles ;
+- indisponibilité de `ms-produits`.
+
+## Codes HTTP vérifiés
+
+```text
+200 OK
+201 Created
+204 No Content
+400 Bad Request
+401 Unauthorized
+403 Forbidden
+404 Not Found
+503 Service Unavailable
+```
 
 ---
 
-## Tests réalisés
+# 🧯 Gestion des erreurs
 
-### Produits
+L'application possède une gestion explicite des erreurs.
 
-Création d'un produit :
+Quelques exemples :
 
-```http
-POST /api/produits
+### Produit inexistant
+
+```text
+404 Not Found
 ```
 
-Consultation des produits :
+### Données invalides
 
-```http
-GET /api/produits
+```text
+400 Bad Request
 ```
 
-Modification d'un produit :
+### Accès sans authentification
 
-```http
-PUT /api/produits/{id}
+```text
+401 Unauthorized
 ```
 
-Suppression d'un produit :
+### Rôle insuffisant
 
-```http
-DELETE /api/produits/{id}
+```text
+403 Forbidden
 ```
 
-### Commandes
+### `ms-produits` indisponible
 
-Création d'une commande :
-
-```http
-POST /api/commandes
+```text
+503 Service Unavailable
 ```
 
-Consultation des commandes :
-
-```http
-GET /api/commandes
-```
-
-Consultation d'une commande :
-
-```http
-GET /api/commandes/{id}
-```
-
-Modification du statut :
-
-```http
-PATCH /api/commandes/{id}/statut?statut=VALIDEE
-```
-
-### Tests de sécurité
-
-Les principaux scénarios de sécurité ont été validés :
-
-- Requête sans token → `401 Unauthorized`
-- CLIENT → consultation des produits → `200 OK`
-- CLIENT → suppression d'un produit → `403 Forbidden`
-- CLIENT → création d'une commande → `201 Created`
-- CLIENT → consultation des commandes → `403 Forbidden`
-- GESTIONNAIRE → consultation des commandes → `200 OK`
-- GESTIONNAIRE → création d'un produit → `201 Created`
-- GESTIONNAIRE → modification d'un produit → `200 OK`
-- GESTIONNAIRE → suppression d'un produit → `403 Forbidden`
-- ADMIN → suppression d'un produit → `204 No Content`
-
-La communication entre `ms-commandes` et `ms-produits` a été validée avec **OpenFeign + Eureka**.
+Cela permet notamment à `ms-commandes` de retourner une réponse contrôlée lorsque le service des produits n'est pas disponible.
 
 ---
 
-## Statut du projet
+# 📮 Collection Postman
 
-🚧 **TP en cours de réalisation**
+Une collection Postman est fournie dans :
 
-Les éléments suivants sont actuellement fonctionnels :
+```text
+postman/
+```
 
-- les microservices `ms-produits` et `ms-commandes` ;
-- les bases PostgreSQL indépendantes ;
-- la configuration centralisée avec Config Server ;
-- la découverte de services avec Eureka ;
-- la communication inter-services avec OpenFeign ;
-- l'API Gateway ;
-- l'authentification avec Keycloak ;
-- la gestion des rôles et autorisations au niveau du Gateway.
+Elle permet de tester :
 
-### Prochaines étapes
+- l'authentification Keycloak ;
+- les produits ;
+- les commandes ;
+- les autorisations ;
+- les cas d'erreur.
 
-1. Sécurisation directe de `ms-produits`.
-2. Sécurisation directe de `ms-commandes`.
-3. Tests complets de l'architecture.
-4. Finalisation de la documentation et des livrables du TP.
+Les tokens JWT sont récupérés depuis Keycloak puis utilisés dans les requêtes.
+
+Les mots de passe ne doivent pas être enregistrés dans Git.
+
+---
+
+# 🚀 Installation et lancement
+
+Les instructions détaillées d'installation, de configuration et de démarrage sont disponibles dans :
+
+```text
+START-README.md
+```
+
+Le démarrage général suit l'ordre :
+
+```text
+PostgreSQL + Keycloak
+        ↓
+Config Server
+        ↓
+Eureka Server
+        ↓
+ms-produits + ms-commandes
+        ↓
+API Gateway
+        ↓
+Tests Postman
+```
+
+---
+
+# 📊 État du projet
+
+## ✅ TP fonctionnel
+
+Les principaux éléments demandés dans le TP sont réalisés :
+
+- [x] `ms-produits`
+- [x] `ms-commandes`
+- [x] PostgreSQL
+- [x] Config Server
+- [x] Eureka Server
+- [x] OpenFeign
+- [x] API Gateway
+- [x] Keycloak
+- [x] OAuth2 / JWT
+- [x] Gestion des rôles
+- [x] Validation des données
+- [x] Gestion des erreurs
+- [x] Gestion de l'indisponibilité de `ms-produits`
+- [x] Tests fonctionnels
+- [x] Tests de sécurité
+- [x] Collection Postman
+- [x] Documentation
+
+---
+
+# 📚 Documentation du projet
+
+| Document | Contenu |
+|---|---|
+| `README.md` | Documentation générale du projet |
+| `START-README.md` | Installation, configuration et lancement |
+| `ms-produits/README.md` | Documentation du microservice produits |
+| `ms-commandes/README.md` | Documentation du microservice commandes |
+| `postman/` | Collection de tests Postman |
+
+---
+
+# 👨‍💻 Projet académique
+
+**INF2205 — Technologies du Web**
+
+Projet réalisé dans le cadre du Master en Ingénierie Logicielle à la **Faculté des Sciences et Techniques (FST) de Bamako**.
+
+**Architecture :**
+
+```text
+Microservices
+Spring Boot
+Spring Cloud
+Eureka
+Config Server
+OpenFeign
+API Gateway
+Keycloak
+PostgreSQL
+Docker
+```

@@ -1,0 +1,795 @@
+{
+	"info": {
+		"_postman_id": "187b4f65-1a30-48fa-985e-f66bbe4b5479",
+		"name": "INF2205 - Microservices",
+		"description": "Collection Postman du TP INF2205 — Spring Boot/Spring Cloud, Eureka, Config Server, API Gateway et Keycloak.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "30534085"
+	},
+	"item": [
+		{
+			"name": "01 - Authentification",
+			"item": [
+				{
+					"name": "Token CLIENT",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Token HTTP 200', () => pm.response.to.have.status(200));",
+									"pm.collectionVariables.set('clientToken', pm.response.json().access_token);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "password",
+									"type": "text"
+								},
+								{
+									"key": "client_id",
+									"value": "{{clientId}}",
+									"type": "text"
+								},
+								{
+									"key": "username",
+									"value": "{{clientUsername}}",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "{{clientPassword}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+							"host": [
+								"{{keycloakUrl}}"
+							],
+							"path": [
+								"realms",
+								"{{realm}}",
+								"protocol",
+								"openid-connect",
+								"token"
+							]
+						},
+						"description": "## Endpoint Description\n\nThis endpoint is used to obtain an access token from the Keycloak server for authentication and authorization purposes. It is part of the OpenID Connect protocol and is typically used in scenarios where a client application needs to authenticate a user and receive tokens for accessing protected resources.\n\n### Request\n\n**Method:** POST  \n**URL:** `{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token`  \n**Content-Type:** `application/x-www-form-urlencoded`\n\n#### Expected Input Parameters\n\nThe request body must be formatted as `x-www-form-urlencoded`. The specific parameters required may vary based on the authentication flow being used (e.g., password grant, client credentials). Common parameters include:\n\n- `grant_type`: The type of grant being requested (e.g., `password`, `client_credentials`).\n    \n- `client_id`: The ID of the client making the request.\n    \n- `client_secret`: The secret of the client (if applicable).\n    \n- `username`: The username of the user (if applicable).\n    \n- `password`: The password of the user (if applicable).\n    \n\nNote: The actual parameters used in the last call are not provided.\n\n### Response\n\n**Status Code:** 200  \n**Content-Type:** `application/json`\n\n#### Response Structure\n\nOn a successful request, the response will contain the following fields:\n\n- `access_token`: The token that can be used to authenticate requests to protected resources.\n    \n- `expires_in`: The duration in seconds for which the access token is valid.\n    \n- `refresh_expires_in`: The duration in seconds for which the refresh token is valid.\n    \n- `refresh_token`: A token that can be used to obtain a new access token when the current one expires.\n    \n- `token_type`: The type of token issued (typically \"Bearer\").\n    \n- `not-before-policy`: The time before which the token is not valid.\n    \n- `session_state`: The state of the user's session.\n    \n- `scope`: The scopes associated with the access token.\n    \n\nThis endpoint is essential for obtaining tokens required for secure communication between client applications and the Keycloak server."
+					},
+					"response": []
+				},
+				{
+					"name": "Token GESTIONNAIRE",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Token HTTP 200', () => pm.response.to.have.status(200));",
+									"pm.collectionVariables.set('gestionnaireToken', pm.response.json().access_token);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "password",
+									"type": "text"
+								},
+								{
+									"key": "client_id",
+									"value": "{{clientId}}",
+									"type": "text"
+								},
+								{
+									"key": "username",
+									"value": "{{gestionnaireUsername}}",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "{{gestionnairePassword}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+							"host": [
+								"{{keycloakUrl}}"
+							],
+							"path": [
+								"realms",
+								"{{realm}}",
+								"protocol",
+								"openid-connect",
+								"token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Token ADMIN",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Token HTTP 200', () => pm.response.to.have.status(200));",
+									"pm.collectionVariables.set('adminToken', pm.response.json().access_token);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "grant_type",
+									"value": "password",
+									"type": "text"
+								},
+								{
+									"key": "client_id",
+									"value": "{{clientId}}",
+									"type": "text"
+								},
+								{
+									"key": "username",
+									"value": "{{adminUsername}}",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "{{adminPassword}}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+							"host": [
+								"{{keycloakUrl}}"
+							],
+							"path": [
+								"realms",
+								"{{realm}}",
+								"protocol",
+								"openid-connect",
+								"token"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "02 - Produits",
+			"item": [
+				{
+					"name": "GET - Lister produits",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{clientToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/produits",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"produits"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Produit par ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{clientToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/produits/{{produitId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"produits",
+								"{{produitId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Recherche",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{clientToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/produits/recherche?nom=Produit",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"produits",
+								"recherche"
+							],
+							"query": [
+								{
+									"key": "nom",
+									"value": "Produit"
+								}
+							]
+						},
+						"description": "## Endpoint Description\n\nThis endpoint allows users to search for products based on their name. It retrieves a list of products that match the specified criteria.\n\n### Request\n\n- **Method**: GET\n    \n- **URL**: `{{baseUrl}}/api/produits/recherche`\n    \n\n#### Query Parameters\n\n- **nom** (string): The name of the product to search for. This parameter is used to filter the products returned in the response.\n    \n\n### Response\n\n- **Status Code**: 200 OK\n    \n- **Content-Type**: application/json\n    \n\n#### Response Structure\n\nThe response will be a JSON array containing objects that represent the products found. Each product object includes the following fields:\n\n- **actif** (boolean): Indicates whether the product is active.\n    \n- **description** (string): A description of the product. This may be empty if no description is available.\n    \n- **id** (integer): The unique identifier for the product.\n    \n- **nom** (string): The name of the product.\n    \n- **prix** (integer): The price of the product.\n    \n- **quantiteStock** (integer): The quantity of the product available in stock.\n    \n- **reference** (string): A reference code for the product.\n    \n\n### Example Response\n\n``` json\n[\n    {\n        \"actif\": true,\n        \"description\": \"\",\n        \"id\": 0,\n        \"nom\": \"\",\n        \"prix\": 0,\n        \"quantiteStock\": 0,\n        \"reference\": \"\"\n    }\n]\n\n ```\n\n### Usage Notes\n\n- Ensure that the `nom` parameter is properly encoded in the URL to avoid issues with special characters.\n    \n- The response will return an array, which may be empty if no products match the search criteria.\n    \n- Always check the `actif` field to determine if the product is currently available for sale."
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Produits actifs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{clientToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/produits/actifs",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"produits",
+								"actifs"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Disponibilité",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{clientToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/produits/{{produitId}}/disponible?quantite=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"produits",
+								"{{produitId}}",
+								"disponible"
+							],
+							"query": [
+								{
+									"key": "quantite",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "POST - Créer produit",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{gestionnaireToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reference\": \"POSTMAN-001\",\n  \"nom\": \"Produit Postman\",\n  \"description\": \"Produit de test Postman\",\n  \"prix\": 25000,\n  \"quantiteStock\": 10,\n  \"actif\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/produits",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"produits"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "PUT - Modifier produit",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{gestionnaireToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reference\": \"P001\",\n  \"nom\": \"Produit Modifié\",\n  \"description\": \"Modification par gestionnaire\",\n  \"prix\": 450000,\n  \"quantiteStock\": 10,\n  \"actif\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/produits/{{produitId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"produits",
+								"{{produitId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "DELETE - Supprimer produit",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/produits/{{produitId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"produits",
+								"{{produitId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "03 - Commandes",
+			"item": [
+				{
+					"name": "POST - Créer commande",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{clientToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"clientId\": \"1\",\n  \"lignes\": [\n    {\n      \"produitId\": 2,\n      \"quantite\": 1\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/commandes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"commandes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Lister commandes",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{gestionnaireToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/commandes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"commandes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GET - Commande par ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{gestionnaireToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/commandes/{{commandeId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"commandes",
+								"{{commandeId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "PATCH - Changer statut",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{gestionnaireToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/commandes/{{commandeId}}/statut?statut=LIVREE",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"commandes",
+								"{{commandeId}}",
+								"statut"
+							],
+							"query": [
+								{
+									"key": "statut",
+									"value": "LIVREE"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "04 - Sécurité - Cas négatifs",
+			"item": [
+				{
+					"name": "401 - Sans token",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/produits",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"produits"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "403 - POST produit CLIENT",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{clientToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reference\": \"NEG-001\",\n  \"nom\": \"Produit interdit\",\n  \"description\": \"Test 403\",\n  \"prix\": 1000,\n  \"quantiteStock\": 5,\n  \"actif\": true\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/produits",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"produits"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "403 - GET commandes CLIENT",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{clientToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/commandes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"commandes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "400 - Quantité négative",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{clientToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"clientId\": \"1\",\n  \"lignes\": [\n    {\n      \"produitId\": 2,\n      \"quantite\": -1\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/commandes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"commandes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "404 - Produit inexistant",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{clientToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/produits/9999",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"produits",
+								"9999"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "503 - ms-produits indisponible",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{clientToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"clientId\": \"1\",\n  \"lignes\": [\n    {\n      \"produitId\": 2,\n      \"quantite\": 1\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/commandes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"commandes"
+							]
+						},
+						"description": "À exécuter uniquement après arrêt de ms-produits. Résultat attendu : 503."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8081"
+		},
+		{
+			"key": "keycloakUrl",
+			"value": "http://localhost:8080"
+		},
+		{
+			"key": "realm",
+			"value": "gestion-commerciale"
+		},
+		{
+			"key": "clientId",
+			"value": "gestion-commerciale-app"
+		},
+		{
+			"key": "clientUsername",
+			"value": "client1"
+		},
+		{
+			"key": "clientPassword",
+			"value": ""
+		},
+		{
+			"key": "gestionnaireUsername",
+			"value": "gestionnaire1"
+		},
+		{
+			"key": "gestionnairePassword",
+			"value": ""
+		},
+		{
+			"key": "adminUsername",
+			"value": "admin1"
+		},
+		{
+			"key": "adminPassword",
+			"value": ""
+		},
+		{
+			"key": "clientToken",
+			"value": ""
+		},
+		{
+			"key": "gestionnaireToken",
+			"value": ""
+		},
+		{
+			"key": "adminToken",
+			"value": ""
+		},
+		{
+			"key": "produitId",
+			"value": "2"
+		},
+		{
+			"key": "commandeId",
+			"value": "14"
+		}
+	]
+}

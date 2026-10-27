@@ -1,18 +1,25 @@
-# 🚀 Installation et lancement du projet
+# 🚀 Installation, configuration et lancement
 
-Ce document explique comment installer, configurer et lancer l'architecture microservices du TP **INF2205 — Technologies du Web**.
+Ce document explique comment installer, configurer et lancer le projet **INF2205 — Architecture Microservices avec Spring Boot**.
+
+Pour la présentation générale, l'architecture, les fonctionnalités, la sécurité et les tests, consulter le fichier :
+
+```text
+README.md
+```
 
 ---
 
 # 1. Prérequis
 
-Installer les logiciels suivants :
+Avant de commencer, installer :
 
-- **Java 21**
-- **Maven**
-- **Docker**
-- **Docker Compose**
-- **Git**
+- Java 21
+- Maven
+- Docker
+- Docker Compose
+- Git
+- Postman
 
 Vérifier les installations :
 
@@ -28,7 +35,7 @@ git --version
 
 # 2. Cloner le projet
 
-Depuis le terminal :
+Cloner le dépôt :
 
 ```bash
 git clone git@github.com:Sidy74/INF2205-tp-microservices.git
@@ -42,11 +49,11 @@ cd INF2205-tp-microservices
 
 ---
 
-# 3. Configurer les variables d'environnement
+# 3. Configuration des variables d'environnement
 
-Le projet utilise un fichier `.env` pour les informations sensibles, notamment le mot de passe PostgreSQL.
+Le projet utilise un fichier `.env` pour les informations sensibles.
 
-Créer le fichier `.env` à partir du modèle fourni :
+Créer le fichier à partir du modèle :
 
 ```bash
 cp .env.example .env
@@ -58,51 +65,62 @@ Ouvrir le fichier :
 nano .env
 ```
 
-Renseigner le mot de passe PostgreSQL :
+Configurer le mot de passe PostgreSQL :
 
 ```env
 POSTGRES_PASSWORD=VOTRE_MOT_DE_PASSE
 ```
 
-> ⚠️ Le fichier `.env` contient des informations sensibles et n'est pas versionné sur GitHub.
+> ⚠️ Le fichier `.env` est ignoré par Git et ne doit pas être publié sur GitHub.
+
+Le fichier `.env.example` peut être utilisé comme modèle pour les autres développeurs.
 
 ---
 
-# 4. Démarrer les bases PostgreSQL
+# 4. Démarrer PostgreSQL et Keycloak
 
-Depuis la **racine du projet** :
+Depuis la racine du projet :
 
 ```bash
 docker compose up -d
 ```
 
-Vérifier que les conteneurs sont démarrés :
+Cette commande démarre :
+
+- PostgreSQL pour `ms-produits`
+- PostgreSQL pour `ms-commandes`
+- Keycloak
+
+Vérifier les conteneurs :
 
 ```bash
 docker ps
 ```
 
-Les deux conteneurs PostgreSQL doivent être présents :
+Les ports utilisés sont :
 
-| Conteneur | Base de données | Port |
-|---|---|---:|
-| `postgres-produits` | `ms_produits_db` | `5433` |
-| `postgres-commandes` | `ms_commandes_db` | `5434` |
+| Service | Port |
+|---|---:|
+| PostgreSQL produits | `5433` |
+| PostgreSQL commandes | `5434` |
+| Keycloak | `8080` |
 
-Les ports `5433` et `5434` correspondent aux ports exposés sur la machine hôte.
+Keycloak :
 
-PostgreSQL utilise le port `5432` à l'intérieur de chaque conteneur.
+```text
+http://localhost:8080
+```
 
 ---
 
 # 5. Démarrer le Config Server
 
-Ouvrir un **nouveau terminal**.
+Ouvrir un nouveau terminal.
 
-Depuis le dossier du projet :
+Depuis la racine du projet :
 
 ```bash
-cd INF2205-tp-microservices/config-server
+cd config-server
 ```
 
 Lancer :
@@ -111,7 +129,13 @@ Lancer :
 mvn spring-boot:run
 ```
 
-Le Config Server doit être accessible sur :
+Le Config Server utilise le port :
+
+```text
+8888
+```
+
+URL :
 
 ```text
 http://localhost:8888
@@ -119,26 +143,24 @@ http://localhost:8888
 
 ### Vérification
 
-Tester par exemple :
-
 ```bash
 curl http://localhost:8888/ms-produits/default
 ```
 
 Le serveur doit retourner la configuration de `ms-produits`.
 
-Laisser ce terminal ouvert.
+Laisser le processus en cours d'exécution.
 
 ---
 
 # 6. Démarrer Eureka Server
 
-Ouvrir un **deuxième nouveau terminal**.
+Ouvrir un nouveau terminal.
 
-Depuis le dossier du projet :
+Depuis la racine du projet :
 
 ```bash
-cd INF2205-tp-microservices/eureka-server
+cd eureka-server
 ```
 
 Lancer :
@@ -147,79 +169,73 @@ Lancer :
 mvn spring-boot:run
 ```
 
-Eureka doit être accessible sur :
+Eureka utilise le port :
+
+```text
+8761
+```
+
+Interface :
 
 ```text
 http://localhost:8761
 ```
 
-Ouvrir cette adresse dans le navigateur.
+Ouvrir cette adresse dans le navigateur pour vérifier que Eureka est disponible.
 
-Laisser ce terminal ouvert.
+Laisser le processus en cours d'exécution.
 
 ---
 
 # 7. Démarrer `ms-produits`
 
-Ouvrir un **troisième nouveau terminal**.
+Ouvrir un nouveau terminal.
 
-Depuis la racine du projet :
-
-```bash
-cd INF2205-tp-microservices
-```
-
-Charger les variables d'environnement :
+Depuis la racine du projet, charger les variables d'environnement :
 
 ```bash
 export $(grep -v '^#' .env | xargs)
 ```
 
-Puis entrer dans le microservice :
+Puis :
 
 ```bash
 cd ms-produits
 ```
 
-Lancer l'application :
+Lancer :
 
 ```bash
 mvn spring-boot:run
 ```
 
-Le microservice doit démarrer sur :
+Le service utilise le port :
+
+```text
+8082
+```
+
+URL :
 
 ```text
 http://localhost:8082
 ```
 
-Il doit également apparaître dans Eureka sous :
-
-```text
-MS-PRODUITS
-```
-
-Laisser ce terminal ouvert.
+`ms-produits` doit apparaître dans Eureka après son démarrage.
 
 ---
 
 # 8. Démarrer `ms-commandes`
 
-Ouvrir un **quatrième nouveau terminal**.
+Ouvrir un nouveau terminal.
 
 Depuis la racine du projet :
-
-```bash
-cd INF2205-tp-microservices
-```
-
-Charger les variables d'environnement :
 
 ```bash
 export $(grep -v '^#' .env | xargs)
 ```
 
-Puis entrer dans le microservice :
+Puis :
 
 ```bash
 cd ms-commandes
@@ -231,23 +247,55 @@ Lancer :
 mvn spring-boot:run
 ```
 
-Le microservice doit démarrer sur :
+Le service utilise le port :
+
+```text
+8083
+```
+
+URL :
 
 ```text
 http://localhost:8083
 ```
 
-Il doit également apparaître dans Eureka sous :
-
-```text
-MS-COMMANDES
-```
-
-Laisser ce terminal ouvert.
+`ms-commandes` doit apparaître dans Eureka après son démarrage.
 
 ---
 
-# 9. Vérifier Eureka
+# 9. Démarrer l'API Gateway
+
+Ouvrir un nouveau terminal.
+
+Depuis la racine du projet :
+
+```bash
+cd api-gateway
+```
+
+Lancer :
+
+```bash
+mvn spring-boot:run
+```
+
+L'API Gateway utilise le port :
+
+```text
+8081
+```
+
+URL :
+
+```text
+http://localhost:8081
+```
+
+L'API Gateway doit également apparaître dans Eureka.
+
+---
+
+# 10. Vérifier Eureka
 
 Ouvrir :
 
@@ -255,208 +303,129 @@ Ouvrir :
 http://localhost:8761
 ```
 
-Dans la section :
-
-```text
-Instances currently registered with Eureka
-```
-
-Vérifier la présence de :
+Dans la liste des instances enregistrées, vérifier la présence de :
 
 ```text
 MS-PRODUITS
 MS-COMMANDES
+API-GATEWAY
 ```
 
-Les deux services doivent être en état :
+Les services doivent être enregistrés avec un état :
 
 ```text
 UP
 ```
 
----
-
-# 10. Tester `ms-produits`
-
-## 10.1 Lister les produits
+Une vérification rapide depuis le terminal est également possible :
 
 ```bash
-curl http://localhost:8082/api/produits
+curl -s http://localhost:8761/eureka/apps
 ```
 
 ---
 
-## 10.2 Créer un produit
+# 11. Configuration de Keycloak
 
-```bash
-curl -X POST http://localhost:8082/api/produits \
-  -H "Content-Type: application/json" \
-  -d '{
-    "reference": "P001",
-    "nom": "Ordinateur portable",
-    "description": "Ordinateur de test",
-    "prix": 500000,
-    "quantiteStock": 10,
-    "actif": true
-  }'
-```
+Keycloak est lancé automatiquement avec Docker Compose.
 
-La réponse doit contenir notamment :
-
-```json
-{
-  "id": 1,
-  "reference": "P001",
-  "nom": "Ordinateur portable",
-  "prix": 500000,
-  "quantiteStock": 10,
-  "actif": true
-}
-```
-
-> L'identifiant peut être différent selon l'état de la base de données.
-
----
-
-## 10.3 Consulter un produit
-
-```bash
-curl http://localhost:8082/api/produits/1
-```
-
-Remplacer `1` par l'identifiant réel du produit.
-
----
-
-# 11. Tester `ms-commandes`
-
-## 11.1 Créer une commande
-
-Une commande doit contenir au moins une ligne.
-
-Exemple :
-
-```bash
-curl -X POST http://localhost:8083/api/commandes \
-  -H "Content-Type: application/json" \
-  -d '{
-    "clientId": 1,
-    "lignes": [
-      {
-        "produitId": 1,
-        "quantite": 2
-      }
-    ]
-  }'
-```
-
-Lors de la création, `ms-commandes` :
-
-1. récupère le produit auprès de `ms-produits` ;
-2. utilise **OpenFeign** pour effectuer l'appel ;
-3. utilise **Eureka** pour découvrir `ms-produits` ;
-4. vérifie que le produit est actif ;
-5. vérifie la disponibilité du stock ;
-6. récupère le prix du produit ;
-7. calcule le montant de la commande ;
-8. enregistre la commande dans sa propre base PostgreSQL.
-
----
-
-# 12. Consulter les commandes
-
-Lister toutes les commandes :
-
-```bash
-curl http://localhost:8083/api/commandes
-```
-
----
-
-# 13. Consulter une commande
-
-Utiliser l'identifiant de la commande :
-
-```bash
-curl http://localhost:8083/api/commandes/1
-```
-
-Remplacer `1` par l'identifiant réel de la commande.
-
----
-
-# 14. Modifier le statut d'une commande
-
-Les statuts disponibles sont :
+Accéder à :
 
 ```text
-EN_ATTENTE
-VALIDEE
-EXPEDIEE
-LIVREE
-ANNULEE
+http://localhost:8080
 ```
 
-Exemple pour passer une commande à `VALIDEE` :
-
-```bash
-curl -X PATCH "http://localhost:8083/api/commandes/1/statut?statut=VALIDEE"
-```
-
-Vérifier ensuite la commande :
-
-```bash
-curl http://localhost:8083/api/commandes/1
-```
-
-La réponse doit contenir :
-
-```json
-{
-  "statut": "VALIDEE"
-}
-```
-
----
-
-# 15. Tester la communication OpenFeign
-
-La communication entre les deux microservices est réalisée comme suit :
+Configuration utilisée par le projet :
 
 ```text
-ms-commandes
-     │
-     │ OpenFeign
-     ▼
-   Eureka
-     │
-     ▼
-ms-produits
+Realm  : gestion-commerciale
+Client : gestion-commerciale-app
 ```
 
-`ms-commandes` ne se connecte donc pas directement à la base de données de `ms-produits`.
+Les rôles utilisés sont :
 
-Pour vérifier cette communication, créer une commande :
-
-```bash
-curl -X POST http://localhost:8083/api/commandes \
-  -H "Content-Type: application/json" \
-  -d '{
-    "clientId": 1,
-    "lignes": [
-      {
-        "produitId": 1,
-        "quantite": 2
-      }
-    ]
-  }'
+```text
+CLIENT
+GESTIONNAIRE
+ADMIN
 ```
 
-Si la commande est créée correctement, la communication entre `ms-commandes`, Eureka et `ms-produits` fonctionne.
+Les utilisateurs de test sont configurés dans Keycloak.
+
+> ⚠️ Les identifiants et mots de passe ne doivent pas être ajoutés au dépôt Git public.
 
 ---
 
-# 16. Vérifier les bases PostgreSQL
+# 12. Postman
+
+La collection Postman du projet est disponible dans :
+
+```text
+postman/
+```
+
+Collection :
+
+```text
+INF2205-microservices.postman_collection.json
+```
+
+L'API Gateway constitue le point d'entrée utilisé pour les tests :
+
+```text
+http://localhost:8081
+```
+
+La collection permet notamment de tester l'authentification et les différents endpoints du projet.
+
+Les mots de passe doivent rester dans les variables locales de Postman et ne doivent pas être commités dans Git.
+
+---
+
+# 13. Ordre de démarrage
+
+Pour éviter les problèmes de découverte de services, respecter cet ordre :
+
+```text
+1. PostgreSQL + Keycloak
+           ↓
+2. Config Server : 8888
+           ↓
+3. Eureka Server : 8761
+           ↓
+4. ms-produits : 8082
+   ms-commandes : 8083
+           ↓
+5. API Gateway : 8081
+           ↓
+6. Postman / tests
+```
+
+Cet ordre permet notamment :
+
+- au Config Server d'être disponible avant les clients ;
+- à Eureka d'être disponible avant les microservices ;
+- aux microservices de s'enregistrer auprès d'Eureka ;
+- à l'API Gateway de découvrir les microservices.
+
+---
+
+# 14. Résumé des ports
+
+| Composant | Port |
+|---|---:|
+| Keycloak | `8080` |
+| API Gateway | `8081` |
+| ms-produits | `8082` |
+| ms-commandes | `8083` |
+| Config Server | `8888` |
+| Eureka Server | `8761` |
+| PostgreSQL produits | `5433` |
+| PostgreSQL commandes | `5434` |
+
+---
+
+# 15. Vérifier PostgreSQL
 
 Vérifier les conteneurs :
 
@@ -464,15 +433,7 @@ Vérifier les conteneurs :
 docker ps
 ```
 
-Pour tester la base `ms-commandes` :
-
-```bash
-docker exec -e PGPASSWORD='VOTRE_MOT_DE_PASSE' -it postgres-commandes \
-psql -U fst_user -d ms_commandes_db \
--c "SELECT current_user, current_database();"
-```
-
-Pour tester la base `ms-produits` :
+Tester la base `ms-produits` :
 
 ```bash
 docker exec -e PGPASSWORD='VOTRE_MOT_DE_PASSE' -it postgres-produits \
@@ -480,54 +441,41 @@ psql -U fst_user -d ms_produits_db \
 -c "SELECT current_user, current_database();"
 ```
 
----
+Tester la base `ms-commandes` :
 
-# 17. Ordre de démarrage
-
-L'ordre recommandé est :
-
-```text
-1. PostgreSQL
-       ↓
-2. Config Server : 8888
-       ↓
-3. Eureka Server : 8761
-       ↓
-4. ms-produits : 8082
-       ↓
-5. ms-commandes : 8083
-       ↓
-6. API Gateway : 8081
-       ↓
-7. Keycloak : 8080
-       ↓
-8. Tests
+```bash
+docker exec -e PGPASSWORD='VOTRE_MOT_DE_PASSE' -it postgres-commandes \
+psql -U fst_user -d ms_commandes_db \
+-c "SELECT current_user, current_database();"
 ```
 
-> Dans l'état actuel du projet, **API Gateway et Keycloak ne sont pas encore finalisés**. Les étapes 1 à 5 constituent l'environnement actuellement fonctionnel.
-
 ---
 
-# 18. Arrêter les applications Spring Boot
+# 16. Arrêter les applications Spring Boot
 
-Dans chaque terminal où une application Spring Boot est en cours d'exécution :
+Dans chaque terminal où une application Spring Boot est lancée :
 
 ```text
 Ctrl + C
 ```
 
-Arrêter notamment :
+Arrêter les services dans l'ordre inverse du démarrage :
 
-1. `ms-commandes`
-2. `ms-produits`
-3. Eureka Server
-4. Config Server
-
-Lorsque l'API Gateway et Keycloak seront ajoutés, ils devront également être arrêtés.
+```text
+API Gateway
+    ↓
+ms-commandes
+    ↓
+ms-produits
+    ↓
+Eureka Server
+    ↓
+Config Server
+```
 
 ---
 
-# 19. Arrêter PostgreSQL
+# 17. Arrêter Docker
 
 Depuis la racine du projet :
 
@@ -535,43 +483,35 @@ Depuis la racine du projet :
 docker compose down
 ```
 
-Cette commande arrête les conteneurs PostgreSQL.
+Cette commande arrête :
 
-Les données sont conservées dans les volumes Docker :
+- PostgreSQL produits ;
+- PostgreSQL commandes ;
+- Keycloak.
 
-```text
-postgres-produits-data
-postgres-commandes-data
-```
+Les volumes Docker sont conservés.
 
-Pour supprimer également les données des bases :
+---
+
+# 18. Supprimer les volumes Docker
+
+Pour arrêter les conteneurs et supprimer également les volumes :
 
 ```bash
 docker compose down -v
 ```
 
-> ⚠️ Cette dernière commande supprime les volumes Docker et donc les données PostgreSQL enregistrées dans ces volumes.
+> ⚠️ Cette commande supprime les volumes PostgreSQL et donc les données stockées dans les bases.
+
+À utiliser uniquement si une réinitialisation complète des bases est souhaitée.
 
 ---
 
-# 20. Résumé des URLs
+# 19. Dépannage
 
-| Service | URL |
-|---|---|
-| Keycloak | `http://localhost:8080` |
-| API Gateway | `http://localhost:8081` |
-| ms-produits | `http://localhost:8082` |
-| ms-commandes | `http://localhost:8083` |
-| Eureka | `http://localhost:8761` |
-| Config Server | `http://localhost:8888` |
+## Port déjà utilisé
 
----
-
-# 21. Dépannage
-
-### Le port est déjà utilisé
-
-Identifier le processus :
+Si une application ne démarre pas parce qu'un port est déjà utilisé :
 
 ```bash
 sudo lsof -i :8082
@@ -579,37 +519,65 @@ sudo lsof -i :8082
 
 Remplacer `8082` par le port concerné.
 
+Par exemple :
+
+```bash
+sudo lsof -i :8081
+sudo lsof -i :8083
+sudo lsof -i :8761
+sudo lsof -i :8888
+```
+
 ---
 
-### Le microservice ne trouve pas Config Server
+## Config Server inaccessible
 
-Vérifier que Config Server fonctionne :
+Vérifier que le Config Server est lancé :
 
 ```bash
 curl http://localhost:8888/ms-produits/default
 ```
 
-Puis vérifier que le fichier correspondant existe dans :
+Si aucune réponse n'est obtenue, démarrer :
 
-```text
-config-repo/ms-produits.yml
+```bash
+cd config-server
+mvn spring-boot:run
 ```
 
 ---
 
-### Le microservice n'apparaît pas dans Eureka
+## Eureka inaccessible
 
 Vérifier :
 
-```text
-http://localhost:8761
+```bash
+curl http://localhost:8761/eureka/apps
 ```
 
-Puis vérifier que Eureka Server est démarré avant les microservices.
+Si Eureka ne répond pas :
+
+```bash
+cd eureka-server
+mvn spring-boot:run
+```
 
 ---
 
-### Erreur de connexion PostgreSQL
+## Un microservice n'apparaît pas dans Eureka
+
+Vérifier que :
+
+1. Config Server est démarré ;
+2. Eureka est démarré ;
+3. le microservice est démarré après Eureka ;
+4. le microservice utilise la bonne configuration.
+
+Si nécessaire, redémarrer le microservice après Eureka.
+
+---
+
+## Erreur de connexion PostgreSQL
 
 Vérifier les conteneurs :
 
@@ -617,64 +585,126 @@ Vérifier les conteneurs :
 docker ps
 ```
 
-Puis vérifier que le fichier `.env` contient :
+Vérifier le fichier :
 
-```env
-POSTGRES_PASSWORD=VOTRE_MOT_DE_PASSE
+```bash
+cat .env
 ```
 
-Avant de lancer `ms-produits` ou `ms-commandes`, charger les variables :
+Puis charger les variables :
 
 ```bash
 export $(grep -v '^#' .env | xargs)
 ```
 
+Ensuite redémarrer le microservice concerné.
+
 ---
 
-# 22. Nettoyage du projet
+## Problème après changement de réseau
 
-Pour arrêter les bases :
+Si la machine change de réseau Wi-Fi, Eureka peut conserver temporairement une ancienne adresse IP d'une instance.
+
+Dans ce cas, redémarrer les services dans cet ordre :
+
+```text
+Config Server
+    ↓
+Eureka
+    ↓
+ms-produits
+    ↓
+ms-commandes
+    ↓
+API Gateway
+```
+
+Cela permet aux instances de se réenregistrer avec leur nouvelle adresse.
+
+---
+
+# 20. Commandes rapides
+
+### Démarrer l'infrastructure
+
+```bash
+docker compose up -d
+```
+
+### Vérifier Docker
+
+```bash
+docker ps
+```
+
+### Config Server
+
+```bash
+cd config-server
+mvn spring-boot:run
+```
+
+### Eureka
+
+```bash
+cd eureka-server
+mvn spring-boot:run
+```
+
+### ms-produits
+
+```bash
+export $(grep -v '^#' .env | xargs)
+cd ms-produits
+mvn spring-boot:run
+```
+
+### ms-commandes
+
+```bash
+export $(grep -v '^#' .env | xargs)
+cd ms-commandes
+mvn spring-boot:run
+```
+
+### API Gateway
+
+```bash
+cd api-gateway
+mvn spring-boot:run
+```
+
+### Arrêter Docker
 
 ```bash
 docker compose down
 ```
 
-Pour arrêter et supprimer également les volumes :
+---
 
-```bash
-docker compose down -v
-```
+# 21. URLs principales
 
-Pour reconstruire les microservices après une modification :
-
-```bash
-mvn clean package -DskipTests
-```
+| Service | Adresse |
+|---|---|
+| Keycloak | http://localhost:8080 |
+| API Gateway | http://localhost:8081 |
+| ms-produits | http://localhost:8082 |
+| ms-commandes | http://localhost:8083 |
+| Eureka | http://localhost:8761 |
+| Config Server | http://localhost:8888 |
 
 ---
 
-## Statut
+## 📌 Documentation complémentaire
 
-🚧 **TP en cours de réalisation**
+Pour comprendre l'architecture, les fonctionnalités, la sécurité, les tests et les choix techniques :
 
-Fonctionnalités actuellement opérationnelles :
+```text
+README.md
+```
 
-- PostgreSQL avec Docker Compose
-- Config Server
-- Eureka Server
-- `ms-produits`
-- `ms-commandes`
-- Communication OpenFeign
-- Découverte de services avec Eureka
-- Création et consultation des produits
-- Création et consultation des commandes
-- Modification du statut des commandes
+Pour l'installation et le lancement :
 
-Prochaines étapes :
-
-- API Gateway
-- Keycloak
-- Authentification
-- Autorisation par rôles
-- Tests Postman complets
-- Finalisation de la documentation
+```text
+START-README.md
+```
