@@ -14,6 +14,7 @@ Microservice de gestion du catalogue des produits dans le cadre du TP **INF2205 
 - modification d'un produit ;
 - suppression d'un produit ;
 - vérification de la disponibilité d'un produit.
+- pagination et tri des produits.
 
 ## Technologies
 
@@ -159,7 +160,59 @@ Un produit contient notamment :
 | `GET` | `/api/produits/{id}/disponible?quantite=...` | Vérifier la disponibilité | CLIENT / GESTIONNAIRE / ADMIN |
 | `PUT` | `/api/produits/{id}` | Modifier un produit | GESTIONNAIRE / ADMIN |
 | `DELETE` | `/api/produits/{id}` | Supprimer un produit | ADMIN |
+| `GET` | `/api/produits/page?page=0&size=10&sortBy=id&direction=asc` | Lister les produits avec pagination et tri | CLIENT / GESTIONNAIRE / ADMIN |
 
+
+## Pagination et tri
+
+Un endpoint dédié permet de consulter le catalogue avec pagination et tri, sans modifier le comportement de l'endpoint classique `GET /api/produits`.
+
+### Endpoint
+
+```text
+GET /api/produits/page
+```
+
+### Paramètres
+
+| Paramètre | Valeur par défaut | Description |
+|---|---:|---|
+| `page` | `0` | Numéro de la page, commençant à 0 |
+| `size` | `10` | Nombre de produits par page |
+| `sortBy` | `id` | Champ utilisé pour le tri |
+| `direction` | `asc` | Direction du tri : `asc` ou `desc` |
+
+### Exemple
+
+```text
+GET /api/produits/page?page=0&size=5&sortBy=nom&direction=asc
+```
+
+La réponse utilise la pagination de Spring Data et contient notamment :
+
+- `content` : produits de la page courante ;
+- `totalElements` : nombre total de produits ;
+- `totalPages` : nombre total de pages ;
+- `number` : numéro de la page courante ;
+- `size` : taille de la page ;
+- `sort` : informations concernant le tri.
+
+### Exemple de résultat testé
+
+```text
+HTTP 200 OK
+
+page = 0
+size = 5
+sortBy = nom
+direction = asc
+totalElements = 3
+totalPages = 1
+```
+
+Le tri par nom croissant a été vérifié avec succès.
+
+L'implémentation repose sur `Page`, `PageRequest`, `Pageable` et `Sort` de Spring Data JPA.
 ## Architecture de sécurité
 
 Le Gateway constitue le point d'entrée normal de l'application, mais `ms-produits` ne fait pas aveuglément confiance aux requêtes provenant du Gateway.

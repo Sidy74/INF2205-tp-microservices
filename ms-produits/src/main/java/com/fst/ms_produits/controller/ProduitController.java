@@ -5,6 +5,7 @@ import com.fst.ms_produits.dto.ProduitResponseDto;
 import com.fst.ms_produits.service.ProduitService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,6 +30,22 @@ public class ProduitController {
 
     }
 
+    @GetMapping("/page")
+    public ResponseEntity<Page<ProduitResponseDto>> listerAvecPagination(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "asc") String direction
+    ) {
+        return ResponseEntity.ok(
+                produitService.listerAvecPagination(
+                        page,
+                        size,
+                        sortBy,
+                        direction
+                )
+        );
+    }
     @GetMapping
     public ResponseEntity<List<ProduitResponseDto>> lister() {
         return ResponseEntity.ok(produitService.lister());
@@ -74,5 +91,4 @@ public class ProduitController {
                 produitService.estDisponible(id, quantite)
         );
     }
-
 }
