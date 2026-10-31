@@ -19,3 +19,25 @@ spring:
               uri: lb://ms-commandes
               predicates:
                 - Path=/api/commandes/**
+
+            - id: ms-produits-openapi
+              uri: lb://ms-produits
+              predicates:
+                - Path=/produits/v3/api-docs
+              filters:
+                - RewritePath=/produits/v3/api-docs, /v3/api-docs
+
+            - id: ms-commandes-openapi
+              uri: lb://ms-commandes
+              predicates:
+                - Path=/commandes/v3/api-docs
+              filters:
+                - RewritePath=/commandes/v3/api-docs, /v3/api-docs
+
+springdoc:
+  swagger-ui:
+    urls:
+      - name: MS Produits
+        url: /produits/v3/api-docs
+      - name: MS Commandes
+        url: /commandes/v3/api-docs

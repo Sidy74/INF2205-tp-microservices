@@ -4,6 +4,7 @@ import com.fst.ms_commandes.dto.CommandeDTO;
 import com.fst.ms_commandes.entity.LigneCommande;
 import com.fst.ms_commandes.entity.StatutCommande;
 import com.fst.ms_commandes.service.CommandeService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/commandes")
+@SecurityRequirement(name = "bearerAuth")
 @RequiredArgsConstructor
 public class CommandeController {
     private final CommandeService  commandeService;

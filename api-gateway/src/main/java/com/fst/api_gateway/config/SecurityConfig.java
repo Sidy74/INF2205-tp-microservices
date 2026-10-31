@@ -27,7 +27,12 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
 
-                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/actuator/**"
+                                ,"/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/produits/v3/api-docs",
+                                "/commandes/v3/api-docs").permitAll()
 
                         // Produits
                         .requestMatchers(HttpMethod.GET, "/api/produits/**")

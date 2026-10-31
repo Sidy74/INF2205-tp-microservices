@@ -24,7 +24,10 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
 
-                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers("/actuator/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html").permitAll()
 
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/produits/**")
                         .hasAnyRole("CLIENT", "GESTIONNAIRE", "ADMIN")

@@ -625,6 +625,19 @@ Les mots de passe ne doivent pas être enregistrés dans Git.
 
 ---
 
+# 📖 Documentation Swagger / OpenAPI
+
+Le projet intègre **Springdoc OpenAPI** afin de documenter et tester les APIs des microservices directement depuis une interface Swagger UI.
+
+## Accès à Swagger
+
+Swagger UI est accessible via l'API Gateway :
+
+```text
+http://localhost:8081/swagger-ui/index.html
+
+---
+
 # 🚀 Installation et lancement
 
 Les instructions détaillées d'installation, de configuration et de démarrage sont disponibles dans :
