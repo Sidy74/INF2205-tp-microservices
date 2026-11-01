@@ -1,6 +1,8 @@
 package com.fst.ms_commandes.config;
 
+import feign.FeignException;
 import feign.RequestInterceptor;
+import feign.codec.ErrorDecoder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -27,5 +29,11 @@ public class FeignConfig {
                 );
             }
         };
+    }
+
+    @Bean
+    public ErrorDecoder feignErrorDecoder() {
+        return (methodKey, response) ->
+                FeignException.errorStatus(methodKey, response);
     }
 }
