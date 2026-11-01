@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -89,6 +90,90 @@ public class CommandeService {
         lignes.forEach(ligne -> ligne.setCommande(commande));
 
         commande.setMontantTotal(commande.calculerMontantTotal());
+
+        Commande sauvegardee = commandeRepository.save(commande);
+
+        return convertirEnDTO(sauvegardee);
+    }
+
+    public CommandeDTO ajouterLigne(Long commandeId, LigneCommandeDTO ligneDTO) {
+
+        Commande commande = commandeRepository.findByIdAvecLignes(commandeId)
+                .orElseThrow(() -> new CommandeNotFoundException(commandeId));
+
+        // Une commande validée, expédiée, livrée ou annulée
+        // ne peut plus être modifiée.
+        if (commande.getStatut() != StatutCommande.EN_ATTENTE) {
+            throw new CommandeInvalideException(
+                    "Une commande avec le statut "
+                            + commande.getStatut()
+                            + " ne peut plus être modifiée"
+            );
+        }
+
+        // Récupération du produit via ms-produits
+        ProduitResponseDTO produit =
+                produitClient.obtenirProduit(ligneDTO.getProduitId());
+
+        // Le produit doit être actif
+        if (!produit.getActif()) {
+            throw new CommandeInvalideException(
+                    "Le produit " + produit.getReference() + " est inactif"
+            );
+        }
+
+        // Vérification de la disponibilité de la quantité ajoutée
+        if (!produitClient.verifierDisponibilite(
+                ligneDTO.getProduitId(),
+                ligneDTO.getQuantite())) {
+
+            throw new CommandeInvalideException(
+                    "Stock insuffisant pour le produit "
+                            + produit.getReference()
+            );
+        }
+
+        // Chercher une ligne existante avec le même produit
+        // ET le même prix.
+        Optional<LigneCommande> ligneExistante = commande.getLignes()
+                .stream()
+                .filter(ligne ->
+                        ligne.getProduitId().equals(produit.getId())
+                                && ligne.getPrixUnitaire()
+                                .compareTo(produit.getPrix()) == 0
+                )
+                .findFirst();
+
+        if (ligneExistante.isPresent()) {
+
+            // Même produit + même prix :
+            // on augmente simplement la quantité.
+            LigneCommande ligne = ligneExistante.get();
+
+            ligne.setQuantite(
+                    ligne.getQuantite() + ligneDTO.getQuantite()
+            );
+
+        } else {
+
+            // Nouveau produit OU prix différent :
+            // on crée une nouvelle ligne.
+            LigneCommande nouvelleLigne = new LigneCommande();
+
+            nouvelleLigne.setProduitId(produit.getId());
+            nouvelleLigne.setReferenceProduit(produit.getReference());
+            nouvelleLigne.setNomProduit(produit.getNom());
+            nouvelleLigne.setQuantite(ligneDTO.getQuantite());
+            nouvelleLigne.setPrixUnitaire(produit.getPrix());
+            nouvelleLigne.setCommande(commande);
+
+            commande.getLignes().add(nouvelleLigne);
+        }
+
+        // Recalcul du montant total
+        commande.setMontantTotal(
+                commande.calculerMontantTotal()
+        );
 
         Commande sauvegardee = commandeRepository.save(commande);
 

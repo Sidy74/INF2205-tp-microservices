@@ -2,6 +2,7 @@ package com.fst.ms_commandes.controller;
 
 import com.fst.ms_commandes.config.SecurityConfig;
 import com.fst.ms_commandes.dto.CommandeDTO;
+import com.fst.ms_commandes.dto.LigneCommandeDTO;
 import com.fst.ms_commandes.service.CommandeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -195,7 +196,6 @@ class CommandeControllerIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
-
     @Test
     void creerCommande_avecQuantiteNegative_doitRetourner400() throws Exception {
 
@@ -219,7 +219,6 @@ class CommandeControllerIntegrationTest {
                 )
                 .andExpect(status().isBadRequest());
     }
-
 
     @Test
     void changerStatut_avecGestionnaire_doitRetourner200() throws Exception {
@@ -245,7 +244,6 @@ class CommandeControllerIntegrationTest {
                 .andExpect(jsonPath("$.statut").value("LIVREE"));
     }
 
-
     @Test
     void changerStatut_avecClient_doitRetourner403() throws Exception {
 
@@ -257,5 +255,88 @@ class CommandeControllerIntegrationTest {
                                 .param("statut", "LIVREE")
                 )
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void ajouterLigne_avecGestionnaire_doitRetourner200() throws Exception {
+
+        CommandeDTO resultat = new CommandeDTO();
+        resultat.setId(1L);
+        resultat.setClientId("client1");
+        resultat.setStatut("EN_ATTENTE");
+
+        when(commandeService.ajouterLigne(
+                any(Long.class),
+                any(LigneCommandeDTO.class)
+        )).thenReturn(resultat);
+
+        mockMvc.perform(
+                        post("/api/commandes/1/lignes")
+                                .with(jwt().authorities(
+                                        new SimpleGrantedAuthority("ROLE_GESTIONNAIRE")
+                                ))
+                                .contentType("application/json")
+                                .content("""
+                                    {
+                                      "produitId": 2,
+                                      "quantite": 3
+                                    }
+                                    """)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.clientId").value("client1"))
+                .andExpect(jsonPath("$.statut").value("EN_ATTENTE"));
+    }
+
+    @Test
+    void ajouterLigne_avecClient_doitRetourner403() throws Exception {
+
+        mockMvc.perform(
+                        post("/api/commandes/1/lignes")
+                                .with(jwt().authorities(
+                                        new SimpleGrantedAuthority("ROLE_CLIENT")
+                                ))
+                                .contentType("application/json")
+                                .content("""
+                                    {
+                                      "produitId": 2,
+                                      "quantite": 3
+                                    }
+                                    """)
+                )
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void ajouterLigne_avecAdmin_doitRetourner200() throws Exception {
+
+        CommandeDTO resultat = new CommandeDTO();
+        resultat.setId(1L);
+        resultat.setClientId("client1");
+        resultat.setStatut("EN_ATTENTE");
+
+        when(commandeService.ajouterLigne(
+                any(Long.class),
+                any(LigneCommandeDTO.class)
+        )).thenReturn(resultat);
+
+        mockMvc.perform(
+                        post("/api/commandes/1/lignes")
+                                .with(jwt().authorities(
+                                        new SimpleGrantedAuthority("ROLE_ADMIN")
+                                ))
+                                .contentType("application/json")
+                                .content("""
+                                    {
+                                      "produitId": 2,
+                                      "quantite": 3
+                                    }
+                                    """)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.clientId").value("client1"))
+                .andExpect(jsonPath("$.statut").value("EN_ATTENTE"));
     }
 }

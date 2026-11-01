@@ -1,6 +1,7 @@
 package com.fst.ms_commandes.controller;
 
 import com.fst.ms_commandes.dto.CommandeDTO;
+import com.fst.ms_commandes.dto.LigneCommandeDTO;
 import com.fst.ms_commandes.entity.StatutCommande;
 import com.fst.ms_commandes.service.CommandeService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -54,6 +55,15 @@ public class CommandeController {
 
         return ResponseEntity.ok(
                 commandeService.changerStatut(id, statut)
+        );
+    }
+    @PostMapping("/{id}/lignes")
+    public ResponseEntity<CommandeDTO> ajouterLigne(
+            @PathVariable Long id,
+            @Valid @RequestBody LigneCommandeDTO ligneDTO) {
+
+        return ResponseEntity.ok(
+                commandeService.ajouterLigne(id, ligneDTO)
         );
     }
 }

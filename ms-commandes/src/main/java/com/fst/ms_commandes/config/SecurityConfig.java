@@ -34,13 +34,16 @@ public class SecurityConfig {
 
 
                         // Création d'une commande
-                        .requestMatchers(HttpMethod.POST, "/api/commandes/**")
+                        .requestMatchers(HttpMethod.POST, "/api/commandes")
                         .hasRole("CLIENT")
+
+                        // Ajout d'une ligne à une commande
+                        .requestMatchers(HttpMethod.POST, "/api/commandes/*/lignes")
+                        .hasAnyRole("GESTIONNAIRE", "ADMIN")
 
                         // Consultation des commandes
                         .requestMatchers(HttpMethod.GET, "/api/commandes/**")
                         .hasAnyRole("GESTIONNAIRE", "ADMIN")
-
                         // Modification du statut d'une commande
                         .requestMatchers(HttpMethod.PATCH, "/api/commandes/**")
                         .hasAnyRole("GESTIONNAIRE", "ADMIN")

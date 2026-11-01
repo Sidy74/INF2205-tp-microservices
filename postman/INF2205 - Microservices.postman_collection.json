@@ -580,6 +580,39 @@
 						}
 					},
 					"response": []
+				},{
+					"name": "POST - Ajouter ligne",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{gestionnaireToken}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"produitId\": 3,\n  \"quantite\": 2\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/commandes/{{commandeId}}/lignes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"commandes",
+								"{{commandeId}}",
+								"lignes"
+							]
+						},
+						"description": "Ajoute une ligne à une commande existante. La commande doit être EN_ATTENTE. L'opération est réservée aux rôles GESTIONNAIRE et ADMIN."
+					},
+					"response": []
 				},
 				{
 					"name": "GET - Commandes d'un client",
