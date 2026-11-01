@@ -81,6 +81,28 @@ Les requêtes sans token valide sont refusées avec `401 Unauthorized`.
 
 Les requêtes avec un token valide mais avec un rôle insuffisant sont refusées avec `403 Forbidden`.
 
+### Identité du client
+
+Lors de la création d'une commande, le `clientId` **n'est pas fourni dans le corps de la requête**.
+
+Il est récupéré directement depuis le claim `sub` du token JWT authentifié.
+
+Cela permet d'éviter qu'un utilisateur `CLIENT` puisse créer une commande au nom d'un autre client en envoyant un autre `clientId`.
+
+Le fonctionnement est donc :
+
+```text
+JWT Keycloak
+    │
+    └── sub = identifiant du client
+              │
+              ▼
+       ms-commandes
+              │
+              ▼
+       commande.clientId
+```
+
 ## Communication interservices
 
 La communication avec `ms-produits` est réalisée avec **OpenFeign**.
@@ -91,14 +113,14 @@ La communication avec `ms-produits` est réalisée avec **OpenFeign**.
                          | découverte
                          v
 Client → API Gateway → ms-commandes
-                           |
-                           | OpenFeign + JWT
-                           v
-                       ms-produits
-                         |       |
-                         v       v
-                    PostgreSQL PostgreSQL
-                       :5434       :5433
+                         |
+                         | OpenFeign + JWT
+                         v
+                    ms-produits
+                       |       |
+                       v       v
+                  PostgreSQL PostgreSQL
+                     :5434       :5433
 ```
 
 `ms-commandes` ne possède pas de connexion directe à la base de données de `ms-produits`.
@@ -137,9 +159,10 @@ Lorsqu'une commande est créée, `ms-commandes` :
 2. vérifie que le produit est actif ;
 3. vérifie la quantité disponible ;
 4. récupère son prix ;
-5. crée la ligne de commande ;
-6. calcule le montant total ;
-7. enregistre la commande dans sa propre base.
+5. récupère l'identité du client depuis le `sub` du JWT ;
+6. crée la ligne de commande ;
+7. calcule le montant total ;
+8. enregistre la commande dans sa propre base.
 
 Lorsqu'une ligne est ajoutée à une commande existante, `ms-commandes` :
 
@@ -179,7 +202,7 @@ Une commande contient notamment :
 |---|---|
 | `id` | Identifiant de la commande |
 | `numero` | Numéro unique généré automatiquement |
-| `clientId` | Identifiant du client |
+| `clientId` | Identifiant du client provenant du JWT |
 | `dateCommande` | Date de création |
 | `statut` | État de la commande |
 | `montantTotal` | Montant total |
@@ -226,12 +249,13 @@ Les exemples ci-dessous sont donnés pour un accès direct au microservice sur l
 
 ### Créer une commande
 
+Le `clientId` n'est pas envoyé dans la requête. Il est automatiquement récupéré depuis le `sub` du JWT.
+
 ```bash
 curl -i -X POST http://localhost:8083/api/commandes \
   -H "Authorization: Bearer $TOKEN_CLIENT" \
   -H "Content-Type: application/json" \
   -d '{
-    "clientId": "1",
     "lignes": [
       {
         "produitId": 2,
@@ -375,6 +399,7 @@ Les tests couvrent notamment :
 - validation des lignes ;
 - vérification des produits ;
 - vérification du stock ;
+- récupération de l'identité du client depuis le JWT ;
 - consultation des commandes ;
 - changement de statut ;
 - ajout de lignes à une commande ;
@@ -408,5 +433,7 @@ Les fonctionnalités principales du microservice sont opérationnelles.
 La communication avec `ms-produits` via **OpenFeign + Eureka** a été validée, y compris la transmission du JWT.
 
 La sécurité avec **Keycloak / OAuth2 / JWT** a également été validée avec les différents rôles.
+
+L'identité du client lors de la création d'une commande est déterminée à partir du token JWT afin d'éviter la modification du `clientId` par le client.
 
 Les principaux scénarios de création, consultation, ajout de lignes, modification du statut et contrôle des autorisations ont été testés avec succès.

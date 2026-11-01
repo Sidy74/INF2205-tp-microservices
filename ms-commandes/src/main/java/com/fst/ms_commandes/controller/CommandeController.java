@@ -1,5 +1,6 @@
 package com.fst.ms_commandes.controller;
 
+import com.fst.ms_commandes.dto.CommandeCreationDTO;
 import com.fst.ms_commandes.dto.CommandeDTO;
 import com.fst.ms_commandes.dto.LigneCommandeDTO;
 import com.fst.ms_commandes.entity.StatutCommande;
@@ -22,13 +23,11 @@ public class CommandeController {
 
     @PostMapping
     public ResponseEntity<CommandeDTO> creer(
-            @Valid @RequestBody CommandeDTO demande) {
-
+            @Valid @RequestBody CommandeCreationDTO demande) {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(commandeService.creer(demande));
     }
-
 
     @GetMapping("/client/{clientId}")
     public ResponseEntity<List<CommandeDTO>> listerParClient(

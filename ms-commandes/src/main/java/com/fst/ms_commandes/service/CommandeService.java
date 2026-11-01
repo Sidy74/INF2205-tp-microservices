@@ -18,6 +18,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.fst.ms_commandes.dto.CommandeCreationDTO;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+
 @Service
 @RequiredArgsConstructor
 public class CommandeService {
@@ -38,14 +42,19 @@ public class CommandeService {
         return numero;
     }
 
-    public CommandeDTO creer(CommandeDTO demande) {
+    public CommandeDTO creer(CommandeCreationDTO demande) {
 
         if (demande.getLignes() == null || demande.getLignes().isEmpty()) {
             throw new CommandeInvalideException(
                     "Une commande doit contenir au moins une ligne"
             );
         }
+        JwtAuthenticationToken authentication =
+                (JwtAuthenticationToken) SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
 
+        String clientId = authentication.getToken().getSubject();
         List<LigneCommande> lignes = demande.getLignes()
                 .stream()
                 .map(ligneDTO -> {
@@ -81,7 +90,7 @@ public class CommandeService {
         Commande commande = new Commande();
 
         commande.setNumero(genererNumeroCommande());
-        commande.setClientId(demande.getClientId());
+        commande.setClientId(clientId);
         commande.setDateCommande(LocalDateTime.now());
         commande.setStatut(StatutCommande.EN_ATTENTE);
 

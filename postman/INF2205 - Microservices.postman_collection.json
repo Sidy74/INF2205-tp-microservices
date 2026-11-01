@@ -488,7 +488,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"clientId\": \"1\",\n  \"lignes\": [\n    {\n      \"produitId\": 2,\n      \"quantite\": 1\n    }\n  ]\n}"
+							"raw": "{\n  \"lignes\": [\n    {\n      \"produitId\": 2,\n      \"quantite\": 1\n    }\n  ]\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/commandes",
@@ -732,7 +732,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"clientId\": \"1\",\n  \"lignes\": [\n    {\n      \"produitId\": 2,\n      \"quantite\": -1\n    }\n  ]\n}"
+							"raw": "{\n  \"lignes\": [\n    {\n      \"produitId\": 2,\n      \"quantite\": -1\n    }\n  ]\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/commandes",
@@ -787,7 +787,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"clientId\": \"1\",\n  \"lignes\": [\n    {\n      \"produitId\": 2,\n      \"quantite\": 1\n    }\n  ]\n}"
+							"raw": "{\n   \"lignes\": [\n    {\n      \"produitId\": 2,\n      \"quantite\": 1\n    }\n  ]\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/commandes",

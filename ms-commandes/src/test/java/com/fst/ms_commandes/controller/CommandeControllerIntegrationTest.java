@@ -1,6 +1,7 @@
 package com.fst.ms_commandes.controller;
 
 import com.fst.ms_commandes.config.SecurityConfig;
+import com.fst.ms_commandes.dto.CommandeCreationDTO;
 import com.fst.ms_commandes.dto.CommandeDTO;
 import com.fst.ms_commandes.dto.LigneCommandeDTO;
 import com.fst.ms_commandes.service.CommandeService;
@@ -66,26 +67,30 @@ class CommandeControllerIntegrationTest {
         resultat.setClientId("client1");
         resultat.setStatut("EN_ATTENTE");
 
-        when(commandeService.creer(any(CommandeDTO.class)))
+        when(commandeService.creer(any(CommandeCreationDTO.class)))
                 .thenReturn(resultat);
 
         mockMvc.perform(
                         post("/api/commandes")
-                                .with(jwt().authorities(
-                                        new SimpleGrantedAuthority("ROLE_CLIENT")
-                                ))
+                                .with(jwt()
+                                        .jwt(jwt -> jwt
+                                                .subject("client1")
+                                        )
+                                        .authorities(
+                                                new SimpleGrantedAuthority("ROLE_CLIENT")
+                                        )
+                                )
                                 .contentType("application/json")
                                 .content("""
+                                    {
+                                      "lignes": [
                                         {
-                                          "clientId": "client1",
-                                          "lignes": [
-                                            {
-                                              "produitId": 1,
-                                              "quantite": 2
-                                            }
-                                          ]
+                                          "produitId": 1,
+                                          "quantite": 2
                                         }
-                                        """)
+                                      ]
+                                    }
+                                    """)
                 )
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
