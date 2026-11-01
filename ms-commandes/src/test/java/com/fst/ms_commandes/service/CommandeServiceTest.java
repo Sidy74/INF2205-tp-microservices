@@ -1,0 +1,332 @@
+package com.fst.ms_commandes.service;
+
+import com.fst.ms_commandes.client.ProduitClient;
+import com.fst.ms_commandes.dto.CommandeDTO;
+import com.fst.ms_commandes.dto.LigneCommandeDTO;
+import com.fst.ms_commandes.dto.ProduitResponseDTO;
+import com.fst.ms_commandes.entity.Commande;
+import com.fst.ms_commandes.entity.LigneCommande;
+import com.fst.ms_commandes.entity.StatutCommande;
+import com.fst.ms_commandes.exception.CommandeInvalideException;
+import com.fst.ms_commandes.exception.CommandeNotFoundException;
+import com.fst.ms_commandes.repository.CommandeRepository;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class CommandeServiceTest {
+
+    @Mock
+    private CommandeRepository commandeRepository;
+
+    @Mock
+    private ProduitClient produitClient;
+
+    @InjectMocks
+    private CommandeService commandeService;
+
+
+    @Test
+    void creerCommande_sansLigne_doitLeverUneException() {
+
+        CommandeDTO demande = new CommandeDTO();
+        demande.setLignes(List.of());
+
+        assertThrows(
+                CommandeInvalideException.class,
+                () -> commandeService.creer(demande)
+        );
+
+        verifyNoInteractions(produitClient);
+        verify(commandeRepository, never()).save(any());
+    }
+
+
+    @Test
+    void creerCommande_produitInactif_doitLeverUneException() {
+
+        ProduitResponseDTO produit = new ProduitResponseDTO();
+        produit.setId(1L);
+        produit.setReference("P001");
+        produit.setNom("Ordinateur");
+        produit.setPrix(new BigDecimal("500000"));
+        produit.setActif(false);
+
+        when(produitClient.obtenirProduit(1L))
+                .thenReturn(produit);
+
+        LigneCommandeDTO ligne = new LigneCommandeDTO();
+        ligne.setProduitId(1L);
+        ligne.setQuantite(2);
+
+        CommandeDTO demande = new CommandeDTO();
+        demande.setClientId("client1");
+        demande.setLignes(List.of(ligne));
+
+        assertThrows(
+                CommandeInvalideException.class,
+                () -> commandeService.creer(demande)
+        );
+
+        verify(produitClient).obtenirProduit(1L);
+        verify(produitClient, never())
+                .verifierDisponibilite(any(), any());
+        verify(commandeRepository, never()).save(any());
+    }
+
+
+    @Test
+    void creerCommande_stockInsuffisant_doitLeverUneException() {
+
+        ProduitResponseDTO produit = new ProduitResponseDTO();
+        produit.setId(1L);
+        produit.setReference("P001");
+        produit.setNom("Ordinateur");
+        produit.setPrix(new BigDecimal("500000"));
+        produit.setActif(true);
+
+        when(produitClient.obtenirProduit(1L))
+                .thenReturn(produit);
+
+        when(produitClient.verifierDisponibilite(1L, 10))
+                .thenReturn(false);
+
+        LigneCommandeDTO ligne = new LigneCommandeDTO();
+        ligne.setProduitId(1L);
+        ligne.setQuantite(10);
+
+        CommandeDTO demande = new CommandeDTO();
+        demande.setClientId("client1");
+        demande.setLignes(List.of(ligne));
+
+        assertThrows(
+                CommandeInvalideException.class,
+                () -> commandeService.creer(demande)
+        );
+
+        verify(produitClient).obtenirProduit(1L);
+        verify(produitClient).verifierDisponibilite(1L, 10);
+        verify(commandeRepository, never()).save(any());
+    }
+
+
+    @Test
+    void creerCommande_valide_doitCreerLaCommande() {
+
+        ProduitResponseDTO produit = new ProduitResponseDTO();
+        produit.setId(1L);
+        produit.setReference("P001");
+        produit.setNom("Ordinateur");
+        produit.setPrix(new BigDecimal("500000"));
+        produit.setActif(true);
+
+        when(produitClient.obtenirProduit(1L))
+                .thenReturn(produit);
+
+        when(produitClient.verifierDisponibilite(1L, 2))
+                .thenReturn(true);
+
+        when(commandeRepository.findByNumero(any()))
+                .thenReturn(Optional.empty());
+
+        when(commandeRepository.save(any(Commande.class)))
+                .thenAnswer(invocation -> {
+                    Commande commande = invocation.getArgument(0);
+                    commande.setId(1L);
+                    return commande;
+                });
+
+        LigneCommandeDTO ligne = new LigneCommandeDTO();
+        ligne.setProduitId(1L);
+        ligne.setQuantite(2);
+
+        CommandeDTO demande = new CommandeDTO();
+        demande.setClientId("client1");
+        demande.setLignes(List.of(ligne));
+
+        CommandeDTO resultat = commandeService.creer(demande);
+
+        assertNotNull(resultat);
+        assertEquals(1L, resultat.getId());
+        assertEquals("client1", resultat.getClientId());
+        assertEquals(StatutCommande.EN_ATTENTE.name(), resultat.getStatut());
+        assertEquals(new BigDecimal("1000000"), resultat.getMontantTotal());
+        assertEquals(1, resultat.getLignes().size());
+
+        verify(produitClient).obtenirProduit(1L);
+        verify(produitClient).verifierDisponibilite(1L, 2);
+        verify(commandeRepository).save(any(Commande.class));
+    }
+
+
+    @Test
+    void obtenirParId_commandeExistante_doitRetournerLaCommande() {
+
+        Commande commande = creerCommandeTest(
+                1L,
+                "CMD-001",
+                "client1",
+                StatutCommande.EN_ATTENTE
+        );
+
+        when(commandeRepository.findByIdAvecLignes(1L))
+                .thenReturn(Optional.of(commande));
+
+        CommandeDTO resultat =
+                commandeService.obtenirParId(1L);
+
+        assertNotNull(resultat);
+        assertEquals(1L, resultat.getId());
+        assertEquals("CMD-001", resultat.getNumero());
+        assertEquals("client1", resultat.getClientId());
+        assertEquals(
+                StatutCommande.EN_ATTENTE.name(),
+                resultat.getStatut()
+        );
+    }
+
+
+    @Test
+    void obtenirParId_commandeInexistante_doitLeverUneException() {
+
+        when(commandeRepository.findByIdAvecLignes(99L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                CommandeNotFoundException.class,
+                () -> commandeService.obtenirParId(99L)
+        );
+    }
+
+
+    @Test
+    void lister_doitRetournerToutesLesCommandes() {
+
+        Commande commande1 = creerCommandeTest(
+                1L,
+                "CMD-001",
+                "client1",
+                StatutCommande.EN_ATTENTE
+        );
+
+        Commande commande2 = creerCommandeTest(
+                2L,
+                "CMD-002",
+                "client2",
+                StatutCommande.LIVREE
+        );
+
+        when(commandeRepository.findAllAvecLignes())
+                .thenReturn(List.of(commande1, commande2));
+
+        List<CommandeDTO> resultat =
+                commandeService.lister();
+
+        assertEquals(2, resultat.size());
+        assertEquals("CMD-001", resultat.get(0).getNumero());
+        assertEquals("CMD-002", resultat.get(1).getNumero());
+    }
+
+
+    @Test
+    void changerStatut_commandeExistante_doitModifierLeStatut() {
+
+        Commande commande = creerCommandeTest(
+                1L,
+                "CMD-001",
+                "client1",
+                StatutCommande.EN_ATTENTE
+        );
+
+        when(commandeRepository.findById(1L))
+                .thenReturn(Optional.of(commande));
+
+        when(commandeRepository.save(any(Commande.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CommandeDTO resultat =
+                commandeService.changerStatut(
+                        1L,
+                        StatutCommande.LIVREE
+                );
+
+        assertEquals(
+                StatutCommande.LIVREE.name(),
+                resultat.getStatut()
+        );
+
+        verify(commandeRepository).save(commande);
+    }
+
+
+    @Test
+    void changerStatut_commandeInexistante_doitLeverUneException() {
+
+        when(commandeRepository.findById(99L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                CommandeNotFoundException.class,
+                () -> commandeService.changerStatut(
+                        99L,
+                        StatutCommande.LIVREE
+                )
+        );
+
+        verify(commandeRepository, never()).save(any());
+    }
+
+
+    @Test
+    void changerStatut_commandeLivreeVersAnnulee_doitLeverUneException() {
+
+        Commande commande = creerCommandeTest(
+                1L,
+                "CMD-001",
+                "client1",
+                StatutCommande.LIVREE
+        );
+
+        when(commandeRepository.findById(1L))
+                .thenReturn(Optional.of(commande));
+
+        assertThrows(
+                CommandeInvalideException.class,
+                () -> commandeService.changerStatut(
+                        1L,
+                        StatutCommande.ANNULEE
+                )
+        );
+
+        verify(commandeRepository, never()).save(any());
+    }
+
+
+    private Commande creerCommandeTest(
+            Long id,
+            String numero,
+            String clientId,
+            StatutCommande statut
+    ) {
+        Commande commande = new Commande();
+
+        commande.setId(id);
+        commande.setNumero(numero);
+        commande.setClientId(clientId);
+        commande.setStatut(statut);
+        commande.setLignes(List.of());
+
+        return commande;
+    }
+}
