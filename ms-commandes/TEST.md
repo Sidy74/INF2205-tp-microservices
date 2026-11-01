@@ -27,6 +27,7 @@ Les principaux cas testés sont :
 - rejet d'un produit inactif ;
 - rejet lorsque le stock est insuffisant ;
 - récupération d'une commande existante ;
+- consultation des commandes d'un client ;
 - gestion d'une commande inexistante ;
 - récupération de la liste des commandes ;
 - changement de statut d'une commande ;
@@ -43,6 +44,7 @@ Les tests vérifient notamment :
 - refus d'accès sans authentification ;
 - refus d'un rôle insuffisant ;
 - consultation d'une commande par un `GESTIONNAIRE` ;
+- consultation des commandes d'un client par un `GESTIONNAIRE` ;
 - refus de consultation par un `CLIENT` ;
 - validation d'une quantité négative ;
 - changement de statut par un utilisateur autorisé ;
@@ -67,7 +69,7 @@ mvn clean test
 Résultat :
 
 ```text
-Tests run: 20
+Tests run: 23
 Failures: 0
 Errors: 0
 Skipped: 0
@@ -75,4 +77,4 @@ Skipped: 0
 BUILD SUCCESS
 ```
 
-Les 20 tests de `ms-commandes` sont donc validés.
+Les 23 tests de `ms-commandes` sont donc validés.

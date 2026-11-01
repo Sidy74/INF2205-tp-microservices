@@ -1,7 +1,6 @@
 package com.fst.ms_commandes.controller;
 
 import com.fst.ms_commandes.dto.CommandeDTO;
-import com.fst.ms_commandes.entity.LigneCommande;
 import com.fst.ms_commandes.entity.StatutCommande;
 import com.fst.ms_commandes.service.CommandeService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -27,6 +26,16 @@ public class CommandeController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(commandeService.creer(demande));
+    }
+
+
+    @GetMapping("/client/{clientId}")
+    public ResponseEntity<List<CommandeDTO>> listerParClient(
+            @PathVariable String clientId) {
+
+        return ResponseEntity.ok(
+                commandeService.listerParClient(clientId)
+        );
     }
 
     @GetMapping("/{id}")

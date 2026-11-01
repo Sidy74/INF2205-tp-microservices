@@ -580,6 +580,31 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "GET - Commandes d'un client",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{gestionnaireToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/commandes/client/{{clientId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"commandes",
+								"client",
+								"{{clientId}}"
+							]
+						}
+					},
+					"response": []
 				}
 			]
 		},

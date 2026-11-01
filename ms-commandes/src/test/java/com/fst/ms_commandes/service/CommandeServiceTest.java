@@ -329,4 +329,36 @@ class CommandeServiceTest {
 
         return commande;
     }
+    @Test
+    void listerParClient_doitRetournerLesCommandesDuClient() {
+
+        Commande commande1 = creerCommandeTest(
+                1L,
+                "CMD-001",
+                "client1",
+                StatutCommande.EN_ATTENTE
+        );
+
+        Commande commande2 = creerCommandeTest(
+                2L,
+                "CMD-002",
+                "client1",
+                StatutCommande.LIVREE
+        );
+
+        when(commandeRepository.findAllParClientAvecLignes("client1"))
+                .thenReturn(List.of(commande1, commande2));
+
+        List<CommandeDTO> resultat =
+                commandeService.listerParClient("client1");
+
+        assertEquals(2, resultat.size());
+        assertEquals("CMD-001", resultat.get(0).getNumero());
+        assertEquals("CMD-002", resultat.get(1).getNumero());
+        assertEquals("client1", resultat.get(0).getClientId());
+        assertEquals("client1", resultat.get(1).getClientId());
+
+        verify(commandeRepository)
+                .findAllParClientAvecLignes("client1");
+    }
 }

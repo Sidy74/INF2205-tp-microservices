@@ -95,6 +95,13 @@ public class CommandeService {
         return convertirEnDTO(sauvegardee);
     }
 
+    public List<CommandeDTO> listerParClient(String clientId) {
+        return commandeRepository.findAllParClientAvecLignes(clientId)
+                .stream()
+                .map(this::convertirEnDTO)
+                .toList();
+    }
+
     private CommandeDTO convertirEnDTO(Commande commande) {
         CommandeDTO dto = new CommandeDTO();
 

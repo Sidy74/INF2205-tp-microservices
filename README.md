@@ -198,6 +198,7 @@ Le microservice `ms-produits` est responsable de la gestion du catalogue des pro
 - consulter un produit ;
 - lister les produits ;
 - rechercher un produit par nom ;
+- consulter les commandes d'un client ;
 - lister les produits actifs ;
 - modifier un produit ;
 - supprimer un produit ;
@@ -259,6 +260,7 @@ Une commande contient plusieurs lignes de commande.
 POST  /api/commandes
 GET   /api/commandes
 GET   /api/commandes/{id}
+GET   /api/commandes/client/{clientId}
 PATCH /api/commandes/{id}/statut?statut=...
 ```
 

@@ -12,6 +12,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -32,7 +34,28 @@ class CommandeControllerIntegrationTest {
 
     @MockitoBean
     private JwtDecoder jwtDecoder;
+    @Test
+    void listerCommandesParClient_avecGestionnaire_doitRetourner200() throws Exception {
 
+        CommandeDTO commande = new CommandeDTO();
+        commande.setId(1L);
+        commande.setClientId("client1");
+        commande.setStatut("EN_ATTENTE");
+
+        when(commandeService.listerParClient("client1"))
+                .thenReturn(List.of(commande));
+
+        mockMvc.perform(
+                        get("/api/commandes/client/client1")
+                                .with(jwt().authorities(
+                                        new SimpleGrantedAuthority("ROLE_GESTIONNAIRE")
+                                ))
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1))
+                .andExpect(jsonPath("$[0].clientId").value("client1"))
+                .andExpect(jsonPath("$[0].statut").value("EN_ATTENTE"));
+    }
 
     @Test
     void creerCommande_avecClient_doitRetourner201() throws Exception {
@@ -68,7 +91,17 @@ class CommandeControllerIntegrationTest {
                 .andExpect(jsonPath("$.clientId").value("client1"))
                 .andExpect(jsonPath("$.statut").value("EN_ATTENTE"));
     }
+    @Test
+    void listerCommandesParClient_avecClient_doitRetourner403() throws Exception {
 
+        mockMvc.perform(
+                        get("/api/commandes/client/client1")
+                                .with(jwt().authorities(
+                                        new SimpleGrantedAuthority("ROLE_CLIENT")
+                                ))
+                )
+                .andExpect(status().isForbidden());
+    }
 
     @Test
     void creerCommande_sansAuthentification_doitRetourner401() throws Exception {
