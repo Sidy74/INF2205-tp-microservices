@@ -10,6 +10,8 @@ Microservice de gestion des commandes dans l'architecture microservices du TP **
 - gestion des lignes de commande ;
 - consultation d'une commande ;
 - liste des commandes ;
+- consultation des commandes d'un client ;
+- ajout de lignes à une commande existante ;
 - changement de statut d'une commande ;
 - vérification des produits auprès de `ms-produits`.
 
@@ -26,6 +28,8 @@ Le microservice permet notamment :
 - de calculer automatiquement le montant total ;
 - de consulter une commande par son identifiant ;
 - de lister les commandes ;
+- de consulter les commandes d'un client ;
+- d'ajouter des lignes à une commande existante selon les règles métier retenues ;
 - de modifier le statut d'une commande ;
 - d'empêcher l'annulation directe d'une commande déjà livrée ;
 - de gérer les erreurs de manière centralisée.
@@ -69,6 +73,8 @@ Les rôles utilisés dans le projet sont :
 |---|:---:|:---:|:---:|
 | Créer une commande | ✅ | ❌ | ❌ |
 | Consulter les commandes | ❌ | ✅ | ✅ |
+| Consulter les commandes d'un client | ❌ | ✅ | ✅ |
+| Ajouter une ligne à une commande | ❌ | ✅ | ✅ |
 | Modifier le statut | ❌ | ✅ | ✅ |
 
 Les requêtes sans token valide sont refusées avec `401 Unauthorized`.
@@ -135,6 +141,36 @@ Lorsqu'une commande est créée, `ms-commandes` :
 6. calcule le montant total ;
 7. enregistre la commande dans sa propre base.
 
+Lorsqu'une ligne est ajoutée à une commande existante, `ms-commandes` :
+
+1. vérifie que la commande existe ;
+2. vérifie que son statut est `EN_ATTENTE` ;
+3. récupère le produit via OpenFeign ;
+4. vérifie que le produit est actif ;
+5. vérifie la disponibilité du stock pour la quantité ajoutée ;
+6. récupère le prix actuel du produit ;
+7. ajoute ou complète la ligne selon les règles métier ;
+8. recalcule le montant total ;
+9. enregistre la commande.
+
+## Règles métier — ajout d'une ligne
+
+L'ajout d'une ligne à une commande existante est autorisé uniquement pour les rôles `GESTIONNAIRE` et `ADMIN`.
+
+Les règles retenues sont :
+
+- la commande doit exister ;
+- la commande doit être dans l'état `EN_ATTENTE` ;
+- le produit doit exister ;
+- le produit doit être actif ;
+- le stock doit être disponible pour la quantité ajoutée ;
+- si le produit n'est pas encore présent dans la commande, une nouvelle ligne est créée ;
+- si le produit est déjà présent avec le même prix actuel, la quantité de la ligne existante est augmentée ;
+- si le produit est déjà présent mais que son prix actuel est différent, une nouvelle ligne est créée avec le nouveau prix ;
+- le montant total de la commande est recalculé après l'ajout.
+
+Une commande dont le statut n'est plus `EN_ATTENTE` ne peut plus être modifiée par ajout de ligne.
+
 ## Modèle de commande
 
 Une commande contient notamment :
@@ -180,6 +216,8 @@ Une commande livrée ne peut pas être directement annulée.
 | `POST` | `/api/commandes` | Créer une commande | CLIENT |
 | `GET` | `/api/commandes` | Lister les commandes | GESTIONNAIRE / ADMIN |
 | `GET` | `/api/commandes/{id}` | Consulter une commande | GESTIONNAIRE / ADMIN |
+| `GET` | `/api/commandes/client/{clientId}` | Consulter les commandes d'un client | GESTIONNAIRE / ADMIN |
+| `POST` | `/api/commandes/{id}/lignes` | Ajouter une ligne à une commande | GESTIONNAIRE / ADMIN |
 | `PATCH` | `/api/commandes/{id}/statut?statut=...` | Modifier le statut | GESTIONNAIRE / ADMIN |
 
 ## Exemples
@@ -217,7 +255,26 @@ curl -i http://localhost:8083/api/commandes/1 \
   -H "Authorization: Bearer $TOKEN_GESTIONNAIRE"
 ```
 
-> Remplacer `1` par l'identifiant réel de la commande.
+### Consulter les commandes d'un client
+
+```bash
+curl -i http://localhost:8083/api/commandes/client/1 \
+  -H "Authorization: Bearer $TOKEN_GESTIONNAIRE"
+```
+
+### Ajouter une ligne à une commande
+
+```bash
+curl -i -X POST http://localhost:8083/api/commandes/1/lignes \
+  -H "Authorization: Bearer $TOKEN_GESTIONNAIRE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "produitId": 3,
+    "quantite": 2
+  }'
+```
+
+> La commande doit être dans le statut `EN_ATTENTE`.
 
 ### Modifier le statut
 
@@ -238,27 +295,10 @@ Les principaux scénarios ont été testés via l'API Gateway.
 | GESTIONNAIRE → consultation des commandes | `200 OK` ✅ |
 | GESTIONNAIRE → modification du statut | `200 OK` ✅ |
 | CLIENT → modification du statut | `403 Forbidden` ✅ |
+| CLIENT → ajout d'une ligne | `403 Forbidden` ✅ |
+| GESTIONNAIRE → ajout d'une ligne | `200 OK` ✅ |
+| ADMIN → ajout d'une ligne | `200 OK` ✅ |
 | OpenFeign → accès sécurisé à `ms-produits` avec JWT | Fonctionnel ✅ |
-
-Exemple de commande créée lors des tests :
-
-```json
-{
-  "clientId": "1",
-  "id": 11,
-  "lignes": [
-    {
-      "produitId": 2,
-      "quantite": 1
-    }
-  ],
-  "montantTotal": 450000.00,
-  "numero": "CMD-DC075127",
-  "statut": "EN_ATTENTE"
-}
-```
-
-Le statut de cette commande a ensuite été modifié avec succès vers `VALIDEE` par un utilisateur ayant le rôle `GESTIONNAIRE`.
 
 ## Port
 
@@ -311,9 +351,53 @@ Le microservice utilise une gestion centralisée des exceptions pour notamment t
 
 - commande introuvable ;
 - commande invalide ;
+- produit introuvable via OpenFeign ;
 - produit inactif ;
 - stock insuffisant ;
-- données de commande invalides.
+- données de commande invalides ;
+- indisponibilité du service `ms-produits`.
+
+## Tests
+
+Les tests sont organisés en deux catégories :
+
+```text
+src/test/java/com/fst/ms_commandes/
+├── service/
+│   └── CommandeServiceTest.java
+└── controller/
+    └── CommandeControllerIntegrationTest.java
+```
+
+Les tests couvrent notamment :
+
+- création d'une commande ;
+- validation des lignes ;
+- vérification des produits ;
+- vérification du stock ;
+- consultation des commandes ;
+- changement de statut ;
+- ajout de lignes à une commande ;
+- règles métier liées à l'ajout de lignes ;
+- contrôle des rôles et autorisations ;
+- validation des données entrantes.
+
+Commande :
+
+```bash
+mvn clean test
+```
+
+Résultat actuel :
+
+```text
+Tests run: 26
+Failures: 0
+Errors: 0
+Skipped: 0
+
+BUILD SUCCESS
+```
 
 ## État
 
@@ -325,4 +409,4 @@ La communication avec `ms-produits` via **OpenFeign + Eureka** a été validée,
 
 La sécurité avec **Keycloak / OAuth2 / JWT** a également été validée avec les différents rôles.
 
-Les principaux scénarios de création, consultation, modification du statut et contrôle des autorisations ont été testés avec succès.
+Les principaux scénarios de création, consultation, ajout de lignes, modification du statut et contrôle des autorisations ont été testés avec succès.
