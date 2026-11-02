@@ -6,4 +6,4 @@ target/
 *.iml
 .vscode/
 *.log
-.env
+.envconfig-repo/
