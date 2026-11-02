@@ -49,17 +49,34 @@ Le microservice permet notamment :
 - OAuth2 Resource Server
 - Keycloak
 - Spring Boot Actuator
+- Springdoc OpenAPI
 - Jakarta Validation
 - Lombok
 - Maven
 
-## Sécurité
+---
+
+# 🔐 Sécurité
 
 L'authentification et l'autorisation sont basées sur **Keycloak** et les tokens **JWT**.
 
 `ms-commandes` fonctionne comme un **OAuth2 Resource Server** et valide les tokens JWT émis par Keycloak.
 
-### Rôles
+## Keycloak
+
+Realm utilisé :
+
+```text
+gestion-commerciale
+```
+
+Client :
+
+```text
+gestion-commerciale-app
+```
+
+## Rôles
 
 Les rôles utilisés dans le projet sont :
 
@@ -67,7 +84,7 @@ Les rôles utilisés dans le projet sont :
 - `GESTIONNAIRE`
 - `ADMIN`
 
-### Autorisations
+## Autorisations
 
 | Opération | CLIENT | GESTIONNAIRE | ADMIN |
 |---|:---:|:---:|:---:|
@@ -77,11 +94,19 @@ Les rôles utilisés dans le projet sont :
 | Ajouter une ligne à une commande | ❌ | ✅ | ✅ |
 | Modifier le statut | ❌ | ✅ | ✅ |
 
-Les requêtes sans token valide sont refusées avec `401 Unauthorized`.
+Les requêtes sans token valide sont refusées avec :
 
-Les requêtes avec un token valide mais avec un rôle insuffisant sont refusées avec `403 Forbidden`.
+```text
+401 Unauthorized
+```
 
-### Identité du client
+Les requêtes avec un token valide mais avec un rôle insuffisant sont refusées avec :
+
+```text
+403 Forbidden
+```
+
+## Identité du client
 
 Lors de la création d'une commande, le `clientId` **n'est pas fourni dans le corps de la requête**.
 
@@ -93,30 +118,32 @@ Le fonctionnement est donc :
 
 ```text
 JWT Keycloak
-    │
-    └── sub = identifiant du client
-              │
-              ▼
-       ms-commandes
-              │
-              ▼
+     │
+     └── sub = identifiant du client
+                │
+                ▼
+          ms-commandes
+                │
+                ▼
        commande.clientId
 ```
 
-## Communication interservices
+---
+
+# 🔗 Communication interservices
 
 La communication avec `ms-produits` est réalisée avec **OpenFeign**.
 
 ```text
-                    Eureka Server
-                         |
-                         | découverte
-                         v
+                     Eureka Server
+                          |
+                          | découverte
+                          v
 Client → API Gateway → ms-commandes
-                         |
-                         | OpenFeign + JWT
-                         v
-                    ms-produits
+                          |
+                          | OpenFeign + JWT
+                          v
+                     ms-produits
                        |       |
                        v       v
                   PostgreSQL PostgreSQL
@@ -127,7 +154,7 @@ Client → API Gateway → ms-commandes
 
 Les informations nécessaires sur les produits sont récupérées via l'API de `ms-produits`.
 
-### Transmission du JWT avec OpenFeign
+## Transmission du JWT avec OpenFeign
 
 Lorsqu'une requête authentifiée arrive dans `ms-commandes`, le token JWT est récupéré depuis le contexte de sécurité et transmis automatiquement à `ms-produits` par un `RequestInterceptor` Feign.
 
@@ -151,7 +178,9 @@ ms-produits
 
 Cette approche permet d'éviter que `ms-commandes` accède directement à la base de données de `ms-produits`.
 
-## Exemple de communication
+---
+
+# 📦 Exemple de communication
 
 Lorsqu'une commande est créée, `ms-commandes` :
 
@@ -176,7 +205,9 @@ Lorsqu'une ligne est ajoutée à une commande existante, `ms-commandes` :
 8. recalcule le montant total ;
 9. enregistre la commande.
 
-## Règles métier — ajout d'une ligne
+---
+
+# 📋 Règles métier — ajout d'une ligne
 
 L'ajout d'une ligne à une commande existante est autorisé uniquement pour les rôles `GESTIONNAIRE` et `ADMIN`.
 
@@ -194,7 +225,9 @@ Les règles retenues sont :
 
 Une commande dont le statut n'est plus `EN_ATTENTE` ne peut plus être modifiée par ajout de ligne.
 
-## Modèle de commande
+---
+
+# 📦 Modèle de commande
 
 Une commande contient notamment :
 
@@ -218,7 +251,9 @@ Une ligne de commande contient notamment :
 | `quantite` | Quantité commandée |
 | `prixUnitaire` | Prix du produit au moment de la commande |
 
-## Statuts
+---
+
+# 📊 Statuts
 
 Les statuts disponibles sont :
 
@@ -232,7 +267,9 @@ ANNULEE
 
 Une commande livrée ne peut pas être directement annulée.
 
-## Endpoints
+---
+
+# 🌐 Endpoints
 
 | Méthode | Endpoint | Description | Accès |
 |---|---|---|---|
@@ -243,11 +280,15 @@ Une commande livrée ne peut pas être directement annulée.
 | `POST` | `/api/commandes/{id}/lignes` | Ajouter une ligne à une commande | GESTIONNAIRE / ADMIN |
 | `PATCH` | `/api/commandes/{id}/statut?statut=...` | Modifier le statut | GESTIONNAIRE / ADMIN |
 
-## Exemples
+---
 
-Les exemples ci-dessous sont donnés pour un accès direct au microservice sur le port `8083`. Dans l'architecture complète, les requêtes passent normalement par l'API Gateway sur le port `8081`.
+# 🧪 Exemples
 
-### Créer une commande
+Les exemples ci-dessous sont donnés pour un accès direct au microservice sur le port `8083`.
+
+Dans l'architecture complète, les requêtes passent normalement par l'API Gateway sur le port `8081`.
+
+## Créer une commande
 
 Le `clientId` n'est pas envoyé dans la requête. Il est automatiquement récupéré depuis le `sub` du JWT.
 
@@ -265,28 +306,28 @@ curl -i -X POST http://localhost:8083/api/commandes \
   }'
 ```
 
-### Lister les commandes
+## Lister les commandes
 
 ```bash
 curl -i http://localhost:8083/api/commandes \
   -H "Authorization: Bearer $TOKEN_GESTIONNAIRE"
 ```
 
-### Consulter une commande
+## Consulter une commande
 
 ```bash
 curl -i http://localhost:8083/api/commandes/1 \
   -H "Authorization: Bearer $TOKEN_GESTIONNAIRE"
 ```
 
-### Consulter les commandes d'un client
+## Consulter les commandes d'un client
 
 ```bash
 curl -i http://localhost:8083/api/commandes/client/1 \
   -H "Authorization: Bearer $TOKEN_GESTIONNAIRE"
 ```
 
-### Ajouter une ligne à une commande
+## Ajouter une ligne à une commande
 
 ```bash
 curl -i -X POST http://localhost:8083/api/commandes/1/lignes \
@@ -300,7 +341,7 @@ curl -i -X POST http://localhost:8083/api/commandes/1/lignes \
 
 > La commande doit être dans le statut `EN_ATTENTE`.
 
-### Modifier le statut
+## Modifier le statut
 
 ```bash
 curl -i -X PATCH \
@@ -308,7 +349,9 @@ curl -i -X PATCH \
   -H "Authorization: Bearer $TOKEN_GESTIONNAIRE"
 ```
 
-## Tests de sécurité réalisés
+---
+
+# 🧪 Tests de sécurité réalisés
 
 Les principaux scénarios ont été testés via l'API Gateway.
 
@@ -324,21 +367,51 @@ Les principaux scénarios ont été testés via l'API Gateway.
 | ADMIN → ajout d'une ligne | `200 OK` ✅ |
 | OpenFeign → accès sécurisé à `ms-produits` avec JWT | Fonctionnel ✅ |
 
-## Port
+---
 
-Le microservice écoute sur :
+# ⚙️ Configuration
+
+`ms-commandes` utilise :
+
+- **Spring Cloud Config Client** pour récupérer sa configuration ;
+- **Eureka Discovery Client** pour découvrir les services ;
+- **OpenFeign** pour communiquer avec `ms-produits` ;
+- **Spring Security / OAuth2 Resource Server** pour valider les JWT.
+
+La configuration métier et infrastructure est centralisée dans le dépôt Git :
 
 ```text
-8083
+INF2205-tp-microservices-config-repo
 ```
 
-URL locale :
+Le fichier spécifique à ce microservice est :
 
 ```text
-http://localhost:8083
+ms-commandes.yml
 ```
 
-## Base de données
+Le fichier local `application.properties` contient uniquement les paramètres nécessaires pour identifier le service et contacter le Config Server ainsi que les paramètres de sécurité JWT.
+
+Configuration locale actuelle :
+
+```properties
+spring.application.name=ms-commandes
+spring.config.import=configserver:http://localhost:8888
+spring.security.oauth2.resourceserver.jwt.issuer-uri=http://localhost:8080/realms/gestion-commerciale
+```
+
+Les paramètres tels que :
+
+- le port `8083` ;
+- la connexion PostgreSQL ;
+- Eureka ;
+- les paramètres JPA ;
+
+sont récupérés depuis le Config Server.
+
+---
+
+# 🗄️ Base de données
 
 La base PostgreSQL utilisée par `ms-commandes` est :
 
@@ -350,26 +423,13 @@ Port hôte : 5434
 
 La base est lancée avec Docker Compose depuis la racine du projet.
 
-## Configuration
+`ms-commandes` possède sa propre base de données.
 
-`ms-commandes` utilise :
+Il n'accède jamais directement aux tables de `ms-produits`.
 
-- **Spring Cloud Config Client** pour récupérer sa configuration ;
-- **Eureka Discovery Client** pour découvrir les services ;
-- **OpenFeign** pour communiquer avec `ms-produits` ;
-- **Spring Security / OAuth2 Resource Server** pour valider les JWT.
+---
 
-Configuration locale minimale :
-
-```properties
-spring.application.name=ms-commandes
-server.port=8083
-spring.config.import=optional:configserver:http://localhost:8888
-eureka.client.service-url.defaultZone=http://localhost:8761/eureka/
-spring.security.oauth2.resourceserver.jwt.issuer-uri=http://localhost:8080/realms/gestion-commerciale
-```
-
-## Gestion des erreurs
+# 🧯 Gestion des erreurs
 
 Le microservice utilise une gestion centralisée des exceptions pour notamment traiter :
 
@@ -381,7 +441,35 @@ Le microservice utilise une gestion centralisée des exceptions pour notamment t
 - données de commande invalides ;
 - indisponibilité du service `ms-produits`.
 
-## Tests
+Les erreurs provenant de `ms-produits` sont également transformées en réponses HTTP adaptées.
+
+Par exemple, l'indisponibilité du service distant peut entraîner :
+
+```text
+503 Service Unavailable
+```
+
+---
+
+# 📖 Documentation OpenAPI / Swagger
+
+Le microservice utilise **Springdoc OpenAPI** pour documenter son API.
+
+Documentation OpenAPI directe :
+
+```text
+http://localhost:8083/v3/api-docs
+```
+
+Dans l'architecture complète, la documentation est également accessible à travers l'API Gateway :
+
+```text
+http://localhost:8081/swagger-ui/index.html
+```
+
+---
+
+# 🧪 Tests automatisés
 
 Les tests sont organisés en deux catégories :
 
@@ -413,7 +501,7 @@ Commande :
 mvn clean test
 ```
 
-Résultat actuel :
+## Résultat actuel
 
 ```text
 Tests run: 26
@@ -424,7 +512,31 @@ Skipped: 0
 BUILD SUCCESS
 ```
 
-## État
+---
+
+# 🚀 Port
+
+Le microservice écoute sur :
+
+```text
+8083
+```
+
+URL locale directe :
+
+```text
+http://localhost:8083
+```
+
+En utilisation normale, les requêtes passent par l'API Gateway :
+
+```text
+http://localhost:8081
+```
+
+---
+
+# 📊 État
 
 ✅ **Fonctionnel**
 

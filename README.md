@@ -46,6 +46,7 @@ L'architecture respecte le principe suivant :
           │ produits :5433  │       │ commandes :5434 │
           └─────────────────┘       └─────────────────┘
 
+
                     ┌─────────────────────┐
                     │    Eureka Server    │
                     │        :8761        │
@@ -153,13 +154,6 @@ INF2205-tp-microservices/
 │   ├── pom.xml
 │   └── ...
 │
-├── config-repo/
-│   ├── application.yml
-│   ├── api-gateway.yml
-│   ├── eureka-server.yml
-│   ├── ms-commandes.yml
-│   └── ms-produits.yml
-│
 ├── eureka-server/
 │   ├── src/
 │   ├── pom.xml
@@ -180,11 +174,35 @@ INF2205-tp-microservices/
 ├── postman/
 │   └── INF2205-microservices.postman_collection.json
 │
+├── captures/
+│   ├── Eureka-Screenshot.png
+│   ├── Keycloak-Screenshot-01.png
+│   ├── Keycloak-Screenshot-02.png
+│   └── Keycloak-Screenshot-03.png
+│
 ├── docker-compose.yml
 ├── .env.example
 ├── README.md
 └── START-README.md
 ```
+
+### Dépôt de configuration
+
+La configuration centralisée du projet est stockée dans un dépôt Git séparé :
+
+```text
+INF2205-tp-microservices-config-repo/
+│
+├── application.yml
+├── ms-produits.yml
+├── ms-commandes.yml
+├── api-gateway.yml
+└── eureka-server.yml
+```
+
+Le **Config Server** récupère automatiquement ces fichiers depuis ce dépôt Git.
+
+Le dépôt de configuration est indépendant du dépôt principal et n'a pas besoin d'être cloné séparément pour lancer l'application.
 
 ---
 
@@ -198,11 +216,11 @@ Le microservice `ms-produits` est responsable de la gestion du catalogue des pro
 - consulter un produit ;
 - lister les produits ;
 - rechercher un produit par nom ;
-- consulter les commandes d'un client ;
 - lister les produits actifs ;
 - modifier un produit ;
 - supprimer un produit ;
-- vérifier la disponibilité d'un produit.
+- vérifier la disponibilité d'un produit ;
+- consulter les produits avec pagination et tri.
 
 ## Endpoints principaux
 
@@ -215,6 +233,7 @@ GET    /api/produits/actifs
 PUT    /api/produits/{id}
 DELETE /api/produits/{id}
 GET    /api/produits/{id}/disponible?quantite=...
+GET    /api/produits/page?page=0&size=10&sortBy=id&direction=asc
 ```
 
 ## Modèle produit
@@ -246,6 +265,8 @@ Une commande contient plusieurs lignes de commande.
 - créer une commande ;
 - consulter une commande ;
 - lister les commandes ;
+- consulter les commandes d'un client ;
+- ajouter des lignes à une commande ;
 - modifier le statut d'une commande ;
 - vérifier l'existence du produit ;
 - vérifier que le produit est actif ;
@@ -262,7 +283,14 @@ GET   /api/commandes
 GET   /api/commandes/{id}
 GET   /api/commandes/client/{clientId}
 PATCH /api/commandes/{id}/statut?statut=...
+POST  /api/commandes/{id}/lignes
 ```
+
+Lors de la création d'une commande, le `clientId` n'est pas fourni par le client dans le corps de la requête.
+
+Il est récupéré depuis le claim `sub` du JWT authentifié.
+
+Cela permet d'éviter qu'un utilisateur puisse créer une commande au nom d'un autre client.
 
 ---
 
@@ -297,6 +325,8 @@ public interface ProduitClient {
 }
 ```
 
+Le token JWT de l'utilisateur authentifié est également transmis lors des appels Feign afin que `ms-produits` puisse appliquer ses propres règles de sécurité.
+
 Cette approche permet d'éviter un accès direct de `ms-commandes` à la base de données de `ms-produits`.
 
 ---
@@ -327,13 +357,13 @@ http://localhost:8761
 
 Le **Spring Cloud Config Server** centralise la configuration des différents services.
 
-Les configurations sont stockées dans :
+Les configurations sont stockées dans un **dépôt Git séparé** :
 
 ```text
-config-repo/
+INF2205-tp-microservices-config-repo/
 ```
 
-Fichiers principaux :
+Les fichiers de configuration sont :
 
 ```text
 application.yml
@@ -343,13 +373,19 @@ api-gateway.yml
 eureka-server.yml
 ```
 
+Le Config Server récupère automatiquement ces fichiers depuis GitHub.
+
+Le dépôt de configuration étant privé, un `GITHUB_TOKEN` est utilisé pour permettre au Config Server d'y accéder.
+
+Les informations sensibles ne sont pas stockées en clair dans le dépôt principal.
+
 Le Config Server fonctionne sur :
 
 ```text
 http://localhost:8888
 ```
 
-Cette architecture évite de dupliquer la configuration dans chaque microservice.
+Cette architecture permet de centraliser la configuration et d'éviter de dupliquer les paramètres dans chaque microservice.
 
 ---
 
@@ -388,6 +424,8 @@ L'API Gateway est accessible sur :
 http://localhost:8081
 ```
 
+L'API Gateway participe également à la sécurisation des accès avec les JWT émis par Keycloak.
+
 ---
 
 # 🔐 Sécurité avec Keycloak
@@ -418,7 +456,9 @@ ADMIN
 
 Les utilisateurs authentifiés obtiennent un token JWT contenant leurs rôles.
 
-Les microservices utilisent ce token pour contrôler l'accès aux ressources.
+Les microservices `ms-produits` et `ms-commandes` fonctionnent comme **OAuth2 Resource Server** et valident les JWT émis par Keycloak.
+
+Le `clientId` utilisé lors de la création d'une commande est récupéré depuis le claim `sub` du JWT.
 
 ---
 
@@ -439,6 +479,8 @@ Les microservices utilisent ce token pour contrôler l'accès aux ressources.
 |---|:---:|:---:|:---:|
 | Créer | ✅ | ❌ | ❌ |
 | Consulter | ❌ | ✅ | ✅ |
+| Consulter les commandes d'un client | ❌ | ✅ | ✅ |
+| Ajouter une ligne | ❌ | ✅ | ✅ |
 | Modifier le statut | ❌ | ✅ | ✅ |
 
 ---
@@ -470,6 +512,8 @@ Cette séparation respecte le principe :
 > Une base de données par microservice.
 
 `ms-commandes` ne doit donc pas accéder directement à la base de `ms-produits`.
+
+Les informations sur les produits nécessaires aux commandes sont obtenues via OpenFeign.
 
 ---
 
@@ -534,7 +578,9 @@ Les scénarios suivants ont été vérifiés :
 - suppression avec GESTIONNAIRE ;
 - suppression avec ADMIN ;
 - recherche par nom ;
-- consultation des produits actifs.
+- consultation des produits actifs ;
+- pagination et tri ;
+- vérification de disponibilité.
 
 ## Commandes
 
@@ -546,9 +592,25 @@ Les scénarios suivants ont été vérifiés :
 - quantité nulle ;
 - vérification du stock ;
 - récupération des commandes ;
+- consultation des commandes d'un client ;
+- ajout d'une ligne à une commande ;
 - modification du statut ;
 - contrôle des rôles ;
-- indisponibilité de `ms-produits`.
+- indisponibilité de `ms-produits` ;
+- transmission du JWT lors des appels OpenFeign.
+
+## Tests automatisés
+
+Les tests unitaires et d'intégration des microservices ont également été exécutés.
+
+État actuel :
+
+```text
+ms-produits  : 13 tests — 0 échec
+ms-commandes : 26 tests — 0 échec
+
+Total        : 39 tests — 0 échec
+```
 
 ## Codes HTTP vérifiés
 
@@ -613,30 +675,40 @@ Une collection Postman est fournie dans :
 postman/
 ```
 
+Fichier :
+
+```text
+INF2205-microservices.postman_collection.json
+```
+
 Elle permet de tester :
 
 - l'authentification Keycloak ;
 - les produits ;
+- la pagination et le tri ;
 - les commandes ;
+- l'ajout de lignes ;
 - les autorisations ;
-- les cas d'erreur.
+- les cas d'erreur ;
+- la communication entre les microservices.
 
 Les tokens JWT sont récupérés depuis Keycloak puis utilisés dans les requêtes.
 
-Les mots de passe ne doivent pas être enregistrés dans Git.
+Les mots de passe et tokens JWT ne doivent pas être enregistrés dans Git.
 
 ---
 
 # 📖 Documentation Swagger / OpenAPI
 
-Le projet intègre **Springdoc OpenAPI** afin de documenter et tester les APIs des microservices directement depuis une interface Swagger UI.
-
-## Accès à Swagger
+Le projet intègre **Springdoc OpenAPI** afin de documenter et tester les APIs des microservices.
 
 Swagger UI est accessible via l'API Gateway :
 
 ```text
 http://localhost:8081/swagger-ui/index.html
+```
+
+Les documentations OpenAPI des microservices sont exposées à travers le Gateway.
 
 ---
 
@@ -676,6 +748,7 @@ Les principaux éléments demandés dans le TP sont réalisés :
 - [x] `ms-commandes`
 - [x] PostgreSQL
 - [x] Config Server
+- [x] Configuration centralisée via dépôt Git
 - [x] Eureka Server
 - [x] OpenFeign
 - [x] API Gateway
@@ -683,12 +756,15 @@ Les principaux éléments demandés dans le TP sont réalisés :
 - [x] OAuth2 / JWT
 - [x] Gestion des rôles
 - [x] Validation des données
+- [x] Pagination et tri
 - [x] Gestion des erreurs
 - [x] Gestion de l'indisponibilité de `ms-produits`
+- [x] Tests unitaires et d'intégration
 - [x] Tests fonctionnels
 - [x] Tests de sécurité
 - [x] Collection Postman
-- [x] Documentation
+- [x] Documentation Swagger / OpenAPI
+- [x] Documentation du projet
 
 ---
 
@@ -701,6 +777,13 @@ Les principaux éléments demandés dans le TP sont réalisés :
 | `ms-produits/README.md` | Documentation du microservice produits |
 | `ms-commandes/README.md` | Documentation du microservice commandes |
 | `postman/` | Collection de tests Postman |
+| `captures/` | Captures d'Eureka et Keycloak |
+
+Le dépôt de configuration est disponible séparément :
+
+```text
+INF2205-tp-microservices-config-repo
+```
 
 ---
 

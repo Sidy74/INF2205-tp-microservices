@@ -13,7 +13,7 @@ Microservice de gestion du catalogue des produits dans le cadre du TP **INF2205 
 - recherche par nom ;
 - modification d'un produit ;
 - suppression d'un produit ;
-- vérification de la disponibilité d'un produit.
+- vérification de la disponibilité d'un produit ;
 - pagination et tri des produits.
 
 ## Technologies
@@ -29,6 +29,7 @@ Microservice de gestion du catalogue des produits dans le cadre du TP **INF2205 
 - Eureka Discovery Client
 - Spring Cloud Config Client
 - Spring Boot Actuator
+- Springdoc OpenAPI
 - Jakarta Validation
 - Lombok
 - Maven
@@ -83,6 +84,31 @@ ms-produits
 Eureka Server : 8761
 ```
 
+Le Config Server récupère les fichiers de configuration depuis le dépôt Git séparé :
+
+```text
+INF2205-tp-microservices-config-repo
+```
+
+Le fichier correspondant à ce microservice est :
+
+```text
+ms-produits.yml
+```
+
+Il contient notamment :
+
+- le port du microservice ;
+- les paramètres de connexion PostgreSQL ;
+- les paramètres JPA ;
+- les paramètres nécessaires à Eureka.
+
+Le dépôt de configuration étant privé, l'accès du Config Server est effectué à l'aide de la variable d'environnement `GITHUB_TOKEN`.
+
+Les informations sensibles ne sont pas stockées directement dans le dépôt principal.
+
+---
+
 ## Sécurité
 
 La sécurité est basée sur **Keycloak**, OAuth2 et JWT.
@@ -93,6 +119,12 @@ Realm utilisé :
 
 ```text
 gestion-commerciale
+```
+
+Client :
+
+```text
+gestion-commerciale-app
 ```
 
 Rôles :
@@ -134,6 +166,8 @@ Un utilisateur authentifié mais ne possédant pas le rôle requis reçoit :
 
 > Les mots de passe, tokens JWT et autres informations sensibles ne sont pas stockés dans le dépôt Git.
 
+---
+
 ## Modèle Produit
 
 Un produit contient notamment :
@@ -147,6 +181,8 @@ Un produit contient notamment :
 | `prix` | Prix du produit |
 | `quantiteStock` | Quantité disponible en stock |
 | `actif` | Indique si le produit est actif |
+
+---
 
 ## Endpoints
 
@@ -162,6 +198,7 @@ Un produit contient notamment :
 | `DELETE` | `/api/produits/{id}` | Supprimer un produit | ADMIN |
 | `GET` | `/api/produits/page?page=0&size=10&sortBy=id&direction=asc` | Lister les produits avec pagination et tri | CLIENT / GESTIONNAIRE / ADMIN |
 
+---
 
 ## Pagination et tri
 
@@ -213,6 +250,29 @@ totalPages = 1
 Le tri par nom croissant a été vérifié avec succès.
 
 L'implémentation repose sur `Page`, `PageRequest`, `Pageable` et `Sort` de Spring Data JPA.
+
+---
+
+## Validation des données
+
+Les données reçues lors de la création ou de la modification d'un produit sont validées à l'aide de **Jakarta Validation**.
+
+Les principales règles sont :
+
+- la référence ne doit pas être vide ;
+- le nom ne doit pas être vide ;
+- le prix doit être supérieur ou égal à zéro ;
+- la quantité en stock doit être supérieure ou égale à zéro ;
+- le champ `actif` doit être renseigné.
+
+Une donnée invalide entraîne une réponse :
+
+```text
+400 Bad Request
+```
+
+---
+
 ## Architecture de sécurité
 
 Le Gateway constitue le point d'entrée normal de l'application, mais `ms-produits` ne fait pas aveuglément confiance aux requêtes provenant du Gateway.
@@ -224,18 +284,20 @@ Client
    v
 API Gateway
    |
-   | Validation JWT + rôles
-   |
+   | Routage
    v
 ms-produits
    |
-   | Validation JWT
-   |
+   | Validation JWT + rôles
    v
 PostgreSQL
 ```
 
-Cette double validation permet également de protéger le microservice contre un accès direct contournant le Gateway.
+Le microservice valide lui-même le JWT reçu.
+
+Cette double protection permet également de protéger le microservice contre un accès direct contournant le Gateway.
+
+---
 
 ## Base de données
 
@@ -249,13 +311,75 @@ Port hôte : 5433
 
 La base est lancée avec Docker Compose depuis la racine du projet.
 
+Le microservice `ms-produits` possède sa propre base de données et ne partage pas directement ses tables avec `ms-commandes`.
+
+---
+
 ## Gestion des erreurs
 
 Le microservice utilise un gestionnaire global des exceptions pour notamment gérer :
 
-- produit introuvable : `404 NOT FOUND` ;
-- référence de produit déjà existante : `409 CONFLICT` ;
-- données de produit invalides : `400 BAD REQUEST`.
+- produit introuvable : `404 Not Found` ;
+- référence de produit déjà existante : `409 Conflict` ;
+- données de produit invalides : `400 Bad Request`.
+
+Les erreurs sont retournées sous forme de réponses HTTP adaptées afin de faciliter leur traitement par l'API Gateway et les autres services.
+
+---
+
+## Tests
+
+Les tests automatisés couvrent notamment :
+
+- création d'un produit ;
+- récupération d'un produit ;
+- récupération d'un produit inexistant ;
+- liste des produits ;
+- recherche par nom ;
+- liste des produits actifs ;
+- modification d'un produit ;
+- suppression d'un produit ;
+- vérification de disponibilité ;
+- pagination et tri ;
+- validation des données ;
+- authentification ;
+- autorisation selon les rôles.
+
+### Résultat
+
+```text
+ms-produits
+
+13 tests
+0 échec
+0 erreur
+
+BUILD SUCCESS
+```
+
+Les tests fonctionnels complémentaires ont également été réalisés via Postman à travers l'API Gateway.
+
+---
+
+## Documentation OpenAPI / Swagger
+
+Le microservice utilise **Springdoc OpenAPI** pour documenter son API.
+
+La documentation OpenAPI peut être consultée directement :
+
+```text
+http://localhost:8082/v3/api-docs
+```
+
+En utilisation normale, elle est également exposée à travers l'API Gateway.
+
+Swagger UI :
+
+```text
+http://localhost:8081/swagger-ui/index.html
+```
+
+---
 
 ## Tests de sécurité
 
@@ -263,10 +387,15 @@ Les principaux scénarios testés sont :
 
 - requête sans token → `401 Unauthorized` ;
 - CLIENT → consultation des produits autorisée ;
-- CLIENT → création/modification/suppression refusée selon les règles ;
-- GESTIONNAIRE → création et modification autorisées ;
+- CLIENT → création refusée ;
+- CLIENT → modification refusée ;
+- CLIENT → suppression refusée ;
+- GESTIONNAIRE → création autorisée ;
+- GESTIONNAIRE → modification autorisée ;
 - GESTIONNAIRE → suppression refusée ;
 - ADMIN → suppression autorisée.
+
+---
 
 ## Port
 
@@ -288,6 +417,8 @@ En utilisation normale, les requêtes passent par l'API Gateway :
 http://localhost:8081
 ```
 
+---
+
 ## État
 
 ✅ **Fonctionnel**
@@ -298,7 +429,10 @@ Le service :
 
 - est enregistré auprès d'Eureka ;
 - récupère sa configuration via Config Server ;
+- utilise une configuration centralisée stockée dans un dépôt Git séparé ;
 - utilise PostgreSQL ;
 - est protégé par Spring Security ;
 - valide les JWT émis par Keycloak ;
-- applique les autorisations selon les rôles `CLIENT`, `GESTIONNAIRE` et `ADMIN`.
+- applique les autorisations selon les rôles `CLIENT`, `GESTIONNAIRE` et `ADMIN` ;
+- fournit une API documentée avec OpenAPI ;
+- possède des tests automatisés validés.

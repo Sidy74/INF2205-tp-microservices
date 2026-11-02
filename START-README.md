@@ -49,9 +49,23 @@ cd INF2205-tp-microservices
 
 ---
 
+### Dépôt de configuration
+
+La configuration centralisée du projet est stockée dans un dépôt Git séparé :
+
+```text
+INF2205-tp-microservices-config-repo
+```
+
+Le Config Server récupère automatiquement cette configuration depuis GitHub.
+
+Il n'est donc pas nécessaire de cloner ce dépôt séparément pour lancer l'application.
+
+> ℹ️ Le dépôt de configuration est séparé du dépôt principal afin de respecter le principe de centralisation de la configuration avec Spring Cloud Config Server.
+
 # 3. Configuration des variables d'environnement
 
-Le projet utilise un fichier `.env` pour les informations sensibles.
+Le projet utilise un fichier `.env` pour les informations sensibles nécessaires à l'exécution de l'architecture.
 
 Créer le fichier à partir du modèle :
 
@@ -65,17 +79,39 @@ Ouvrir le fichier :
 nano .env
 ```
 
-Configurer le mot de passe PostgreSQL :
+Configurer les variables nécessaires :
 
 ```env
 POSTGRES_PASSWORD=VOTRE_MOT_DE_PASSE
+GITHUB_TOKEN=VOTRE_TOKEN_GITHUB
 ```
 
-> ⚠️ Le fichier `.env` est ignoré par Git et ne doit pas être publié sur GitHub.
+- `POSTGRES_PASSWORD` : mot de passe utilisé par les bases PostgreSQL.
+- `GITHUB_TOKEN` : token GitHub permettant au Config Server d'accéder au dépôt privé de configuration.
 
-Le fichier `.env.example` peut être utilisé comme modèle pour les autres développeurs.
+Le token GitHub doit disposer des droits nécessaires pour lire le contenu du dépôt de configuration :
 
----
+```text
+INF2205-tp-microservices-config-repo
+```
+
+> ⚠️ Ne jamais publier le fichier `.env` sur GitHub. Il contient des informations sensibles.
+
+Le fichier `.env.example` sert uniquement de modèle et ne doit contenir aucune valeur secrète réelle.
+
+Avant de démarrer le Config Server, charger les variables dans le terminal :
+
+```bash
+export $(grep -v '^#' .env | xargs)
+```
+
+Vérifier que le token est bien chargé sans afficher sa valeur :
+
+```bash
+test -n "$GITHUB_TOKEN" && echo "GITHUB_TOKEN chargé"
+```
+
+Le Config Server utilise ensuite cette variable pour s'authentifier auprès du dépôt Git de configuration.
 
 # 4. Démarrer PostgreSQL et Keycloak
 
@@ -115,9 +151,25 @@ http://localhost:8080
 
 # 5. Démarrer le Config Server
 
+Le Config Server centralise la configuration des différents services.
+
+La configuration est stockée dans un **dépôt Git séparé** :
+
+```text
+INF2205-tp-microservices-config-repo
+```
+
+Le Config Server récupère automatiquement cette configuration depuis GitHub au démarrage.
+
 Ouvrir un nouveau terminal.
 
 Depuis la racine du projet :
+
+```bash
+export $(grep -v '^#' .env | xargs)
+```
+
+Puis :
 
 ```bash
 cd config-server
@@ -143,15 +195,25 @@ http://localhost:8888
 
 ### Vérification
 
+Tester la configuration de `ms-produits` :
+
 ```bash
 curl http://localhost:8888/ms-produits/default
 ```
 
-Le serveur doit retourner la configuration de `ms-produits`.
+Le serveur doit retourner la configuration récupérée depuis le dépôt Git de configuration.
+
+Tester également :
+
+```bash
+curl http://localhost:8888/ms-commandes/default
+```
+
+Si les réponses sont retournées correctement, le Config Server est opérationnel.
+
+> ⚠️ Le `GITHUB_TOKEN` doit être chargé dans le terminal avant le démarrage du Config Server lorsque le dépôt Git de configuration est privé.
 
 Laisser le processus en cours d'exécution.
-
----
 
 # 6. Démarrer Eureka Server
 
@@ -327,7 +389,9 @@ curl -s http://localhost:8761/eureka/apps
 
 # 11. Configuration de Keycloak
 
-Keycloak est lancé automatiquement avec Docker Compose.
+Keycloak est utilisé comme serveur d'authentification et d'autorisation de l'architecture.
+
+Il est lancé automatiquement avec Docker Compose.
 
 Accéder à :
 
@@ -350,11 +414,15 @@ GESTIONNAIRE
 ADMIN
 ```
 
+Le JWT émis par Keycloak est utilisé par l'API Gateway et les microservices protégés.
+
+Les microservices `ms-produits` et `ms-commandes` fonctionnent comme **OAuth2 Resource Server** et valident directement les JWT émis par Keycloak.
+
+Le `clientId` utilisé lors de la création d'une commande est récupéré depuis le claim `sub` du JWT authentifié.
+
 Les utilisateurs de test sont configurés dans Keycloak.
 
-> ⚠️ Les identifiants et mots de passe ne doivent pas être ajoutés au dépôt Git public.
-
----
+> ⚠️ Les identifiants, mots de passe et tokens JWT ne doivent pas être ajoutés au dépôt Git.
 
 # 12. Postman
 
@@ -370,17 +438,36 @@ Collection :
 INF2205-microservices.postman_collection.json
 ```
 
-L'API Gateway constitue le point d'entrée utilisé pour les tests :
+L'API Gateway constitue le point d'entrée principal utilisé pour les tests :
 
 ```text
 http://localhost:8081
 ```
 
-La collection permet notamment de tester l'authentification et les différents endpoints du projet.
+La collection permet notamment de tester :
 
-Les mots de passe doivent rester dans les variables locales de Postman et ne doivent pas être commités dans Git.
+- l'authentification avec Keycloak ;
+- la gestion des produits ;
+- la pagination et le tri ;
+- la création de commandes ;
+- la consultation des commandes ;
+- l'ajout de lignes à une commande ;
+- la modification du statut d'une commande ;
+- les contrôles d'accès selon les rôles `CLIENT`, `GESTIONNAIRE` et `ADMIN` ;
+- les cas d'erreur (`401`, `403`, `404`, `400` et `503`) ;
+- la communication entre `ms-commandes` et `ms-produits` via OpenFeign.
 
----
+Les tests fonctionnels sont normalement exécutés à travers :
+
+```text
+Client
+   ↓
+API Gateway : 8081
+   ↓
+Microservices
+```
+
+Les mots de passe, tokens JWT et autres informations sensibles doivent rester dans les variables locales de Postman et ne doivent pas être commités dans Git.
 
 # 13. Ordre de démarrage
 
@@ -427,29 +514,45 @@ Cet ordre permet notamment :
 
 # 15. Vérifier PostgreSQL
 
-Vérifier les conteneurs :
+Vérifier que les conteneurs PostgreSQL sont actifs :
 
-```bash
+```bash id="g8q2pw"
 docker ps
 ```
 
 Tester la base `ms-produits` :
 
-```bash
-docker exec -e PGPASSWORD='VOTRE_MOT_DE_PASSE' -it postgres-produits \
+```bash id="j1n7qc"
+docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" -it postgres-produits \
 psql -U fst_user -d ms_produits_db \
 -c "SELECT current_user, current_database();"
 ```
 
 Tester la base `ms-commandes` :
 
-```bash
-docker exec -e PGPASSWORD='VOTRE_MOT_DE_PASSE' -it postgres-commandes \
+```bash id="c4v8rz"
+docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" -it postgres-commandes \
 psql -U fst_user -d ms_commandes_db \
 -c "SELECT current_user, current_database();"
 ```
 
----
+Si la variable n'est pas encore chargée dans le terminal :
+
+```bash id="k9p3sx"
+export $(grep -v '^#' .env | xargs)
+```
+
+Les commandes doivent retourner respectivement :
+
+```text
+fst_user | ms_produits_db
+```
+
+et :
+
+```text
+fst_user | ms_commandes_db
+```
 
 # 16. Arrêter les applications Spring Boot
 
@@ -585,16 +688,16 @@ Vérifier les conteneurs :
 docker ps
 ```
 
-Vérifier le fichier :
-
-```bash
-cat .env
-```
-
-Puis charger les variables :
+Vérifier que les variables d'environnement sont chargées :
 
 ```bash
 export $(grep -v '^#' .env | xargs)
+```
+
+Vérifier que `POSTGRES_PASSWORD` est bien défini, sans afficher sa valeur :
+
+```bash
+test -n "$POSTGRES_PASSWORD" && echo "POSTGRES_PASSWORD chargé"
 ```
 
 Ensuite redémarrer le microservice concerné.
@@ -625,62 +728,66 @@ Cela permet aux instances de se réenregistrer avec leur nouvelle adresse.
 
 # 20. Commandes rapides
 
+### Préparer l'environnement
+
+Depuis la racine du projet :
+
+```bash id="v9x1cq"
+export $(grep -v '^#' .env | xargs)
+```
+
 ### Démarrer l'infrastructure
 
-```bash
+```bash id="z7k2mw"
 docker compose up -d
 ```
 
 ### Vérifier Docker
 
-```bash
+```bash id="p4n8rs"
 docker ps
 ```
 
 ### Config Server
 
-```bash
+```bash id="s6t3jd"
 cd config-server
 mvn spring-boot:run
 ```
 
 ### Eureka
 
-```bash
+```bash id="a2q5yk"
 cd eureka-server
 mvn spring-boot:run
 ```
 
 ### ms-produits
 
-```bash
-export $(grep -v '^#' .env | xargs)
+```bash id="h8c4nv"
 cd ms-produits
 mvn spring-boot:run
 ```
 
 ### ms-commandes
 
-```bash
-export $(grep -v '^#' .env | xargs)
+```bash id="j3r7xp"
 cd ms-commandes
 mvn spring-boot:run
 ```
 
 ### API Gateway
 
-```bash
+```bash id="w5d9kf"
 cd api-gateway
 mvn spring-boot:run
 ```
 
 ### Arrêter Docker
 
-```bash
+```bash id="e6m2qs"
 docker compose down
 ```
-
----
 
 # 21. URLs principales
 
