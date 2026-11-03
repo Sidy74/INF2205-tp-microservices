@@ -1,3 +1,4 @@
+```mermaid
 classDiagram
     direction LR
 
@@ -48,3 +49,4 @@ classDiagram
     Commande "1" *-- "0..*" LigneCommande : contient
     Commande --> StatutCommande : possède
     LigneCommande ..> Produit : informations via OpenFeign
+```
