@@ -2,35 +2,42 @@
 
 ```mermaid
 flowchart TB
-    Client["Client / Postman"]
+    Client["Client"]
+    KC["Keycloak"]
+    GW["API Gateway"]
 
-    KC["Keycloak<br/>:8080<br/>Realm gestion-commerciale"]
-    GW["API Gateway<br/>:8081"]
-    CFG["Config Server<br/>:8888"]
-    EUR["Eureka Server<br/>:8761"]
-
-    MP["ms-produits<br/>:8082"]
-    MC["ms-commandes<br/>:8083"]
-
-    DBP[("PostgreSQL<br/>ms_produits_db<br/>:5433")]
-    DBC[("PostgreSQL<br/>ms_commandes_db<br/>:5434")]
-
-    Client -->|"HTTPS + JWT"| GW
+    Client -->|"HTTPS / JWT"| GW
     Client -.->|"Authentification"| KC
-    GW -->|"JWT + routage"| MP
-    GW -->|"JWT + routage"| MC
 
-    MP --> DBP
-    MC --> DBC
+    subgraph METIER ["Microservices métier"]
+        subgraph COMMANDES ["Commandes"]
+            MC["ms-commandes"]
+            DBC[("PostgreSQL<br/>Commandes")]
+            MC --> DBC
+        end
 
-    MC -->|"OpenFeign<br/>lb://ms-produits"| MP
+        subgraph PRODUITS ["Produits"]
+            MP["ms-produits"]
+            DBP[("PostgreSQL<br/>Produits")]
+            MP --> DBP
+        end
 
-    MP -.->|"Enregistrement / découverte"| EUR
-    MC -.->|"Enregistrement / découverte"| EUR
-    GW -.->|"Enregistrement / découverte"| EUR
+        MC -->|"Feign"| MP
+    end
 
-    MP -.->|"Configuration"| CFG
-    MC -.->|"Configuration"| CFG
-    GW -.->|"Configuration"| CFG
-    EUR -.->|"Configuration"| CFG
+    GW --> MC
+    GW --> MP
+
+    subgraph INFRA ["Services techniques"]
+        EUR["Eureka<br/>Découverte"]
+        CFG["Config Server"]
+        GIT@{ shape: cloud, label: "GitHub<br/>Configuration" }
+        EUR -.-> CFG
+        CFG --> GIT
+    end
+
+    METIER -.-> EUR
+    METIER -.-> CFG
+    GW -.-> EUR
+    GW -.-> CFG
 ```
