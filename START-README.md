@@ -2,15 +2,172 @@
 
 Ce document explique comment installer, configurer et lancer le projet **INF2205 — Architecture Microservices avec Spring Boot**.
 
-Pour la présentation générale, l'architecture, les fonctionnalités, la sécurité et les tests, consulter le fichier :
+Deux modes de lancement sont proposés :
 
-```text
-README.md
-```
+1. 🐳 **Mode entièrement Docker (recommandé)** : toute l'architecture est exécutée dans des conteneurs Docker.
+2. ⚙️ **Mode hybride** : Docker est utilisé pour PostgreSQL et Keycloak, tandis que les applications Spring Boot sont lancées individuellement avec Maven.
+
+Pour la présentation générale, l'architecture, les fonctionnalités, la sécurité et les tests, consulter le fichier `README.md`.
 
 ---
 
-# 1. Prérequis
+# 🐳 MODE 1 — Lancement entièrement avec Docker (recommandé)
+
+Ce mode permet de démarrer toute l'architecture microservices dans des conteneurs Docker, sans avoir besoin de lancer individuellement les applications avec Maven.
+
+Tous les composants sont exécutés dans Docker :
+
+- Config Server
+- Eureka Server
+- API Gateway
+- Microservice Produits
+- Microservice Commandes
+- PostgreSQL Produits
+- PostgreSQL Commandes
+- Keycloak
+
+## 1.1. Prérequis
+
+Installer uniquement :
+
+- Docker
+- Docker Compose
+
+Vérifier les installations :
+
+```bash
+docker --version
+docker compose version
+```
+
+## 1.2. Préparer les variables d'environnement
+
+Depuis la racine du projet :
+
+```bash
+cp .env.example .env
+```
+
+Ouvrir le fichier :
+
+```bash
+nano .env
+```
+
+Configurer les variables nécessaires :
+
+```env
+POSTGRES_PASSWORD=VOTRE_MOT_DE_PASSE
+GITHUB_TOKEN=VOTRE_TOKEN_GITHUB
+```
+
+- `POSTGRES_PASSWORD` : mot de passe utilisé par les bases PostgreSQL.
+- `GITHUB_TOKEN` : token GitHub permettant au Config Server d'accéder au dépôt privé de configuration.
+
+Le token GitHub doit disposer des droits nécessaires pour lire le contenu du dépôt :
+
+```text
+INF2205-tp-microservices-config-repo
+```
+
+Ne jamais publier le fichier `.env` sur GitHub.
+
+Le fichier `.env.example` doit uniquement servir de modèle et ne doit contenir aucune valeur secrète réelle.
+
+## 1.3. Construire et démarrer toute l'architecture
+
+Depuis la racine du projet :
+
+```bash
+docker compose up --build -d
+```
+
+Cette commande construit les images Docker des applications et démarre tous les services définis dans le fichier `docker-compose.yml`.
+
+L'ensemble de l'architecture doit être disponible sans lancer de commandes Maven individuellement.
+
+## 1.4. Vérifier les conteneurs
+
+Afficher l'état des conteneurs :
+
+```bash
+docker compose ps
+```
+
+Afficher les journaux de tous les services :
+
+```bash
+docker compose logs -f
+```
+
+Afficher les journaux d'un service particulier :
+
+```bash
+docker compose logs -f ms-produits
+```
+
+```bash
+docker compose logs -f ms-commandes
+```
+
+## 1.5. Accéder aux services
+
+| Composant | URL |
+|---|---|
+| Keycloak | http://localhost:8080 |
+| API Gateway | http://localhost:8081 |
+| ms-produits | http://localhost:8082 |
+| ms-commandes | http://localhost:8083 |
+| Eureka Server | http://localhost:8761 |
+| Config Server | http://localhost:8888 |
+
+L'API Gateway constitue le point d'entrée principal pour les requêtes de l'application.
+
+```text
+Client
+   |
+   v
+API Gateway : 8081
+   |
+   v
+Microservices
+   |
+   +---- ms-produits
+   |
+   +---- ms-commandes
+```
+
+## 1.6. Arrêter toute l'architecture
+
+Depuis la racine du projet :
+
+```bash
+docker compose down
+```
+
+Cette commande arrête et supprime les conteneurs Docker sans supprimer les volumes persistants.
+
+Pour arrêter les conteneurs et supprimer également les volumes :
+
+```bash
+docker compose down -v
+```
+
+⚠️ Cette dernière commande supprime les données persistantes des bases PostgreSQL et de Keycloak.
+
+À utiliser uniquement lorsqu'une réinitialisation complète de l'environnement est souhaitée.
+
+> **Remarque importante :** ce mode suppose que le `docker-compose.yml` contient bien les huit composants, leurs configurations réseau, leurs dépendances et les Dockerfiles des cinq applications Spring Boot. La commande `docker compose up --build -d` ne crée pas automatiquement ces configurations.
+
+---
+
+# ⚙️ MODE 2 — Lancement hybride (Docker + Maven)
+
+Dans ce mode, Docker est utilisé uniquement pour les bases de données PostgreSQL et Keycloak.
+
+Les applications Spring Boot sont démarrées individuellement avec Maven.
+
+## 2.1. Prérequis
 
 Avant de commencer, installer :
 
@@ -31,9 +188,7 @@ docker compose version
 git --version
 ```
 
----
-
-# 2. Cloner le projet
+## 2.2. Cloner le projet
 
 Cloner le dépôt :
 
@@ -47,8 +202,6 @@ Entrer dans le projet :
 cd INF2205-tp-microservices
 ```
 
----
-
 ### Dépôt de configuration
 
 La configuration centralisée du projet est stockée dans un dépôt Git séparé :
@@ -61,9 +214,9 @@ Le Config Server récupère automatiquement cette configuration depuis GitHub.
 
 Il n'est donc pas nécessaire de cloner ce dépôt séparément pour lancer l'application.
 
-> ℹ️ Le dépôt de configuration est séparé du dépôt principal afin de respecter le principe de centralisation de la configuration avec Spring Cloud Config Server.
+Le dépôt de configuration est séparé du dépôt principal afin de respecter le principe de centralisation de la configuration avec Spring Cloud Config Server.
 
-# 3. Configuration des variables d'environnement
+## 2.3. Configuration des variables d'environnement
 
 Le projet utilise un fichier `.env` pour les informations sensibles nécessaires à l'exécution de l'architecture.
 
@@ -89,20 +242,22 @@ GITHUB_TOKEN=VOTRE_TOKEN_GITHUB
 - `POSTGRES_PASSWORD` : mot de passe utilisé par les bases PostgreSQL.
 - `GITHUB_TOKEN` : token GitHub permettant au Config Server d'accéder au dépôt privé de configuration.
 
-Le token GitHub doit disposer des droits nécessaires pour lire le contenu du dépôt de configuration :
+Le token GitHub doit disposer des droits nécessaires pour lire le contenu du dépôt :
 
 ```text
 INF2205-tp-microservices-config-repo
 ```
 
-> ⚠️ Ne jamais publier le fichier `.env` sur GitHub. Il contient des informations sensibles.
+Ne jamais publier le fichier `.env` sur GitHub.
 
 Le fichier `.env.example` sert uniquement de modèle et ne doit contenir aucune valeur secrète réelle.
 
-Avant de démarrer le Config Server, charger les variables dans le terminal :
+Charger les variables d'environnement dans le terminal :
 
 ```bash
-export $(grep -v '^#' .env | xargs)
+set -a
+source .env
+set +a
 ```
 
 Vérifier que le token est bien chargé sans afficher sa valeur :
@@ -111,26 +266,34 @@ Vérifier que le token est bien chargé sans afficher sa valeur :
 test -n "$GITHUB_TOKEN" && echo "GITHUB_TOKEN chargé"
 ```
 
-Le Config Server utilise ensuite cette variable pour s'authentifier auprès du dépôt Git de configuration.
-
-# 4. Démarrer PostgreSQL et Keycloak
-
-Depuis la racine du projet :
+Vérifier également le mot de passe PostgreSQL :
 
 ```bash
-docker compose up -d
+test -n "$POSTGRES_PASSWORD" && echo "POSTGRES_PASSWORD chargé"
+```
+
+Ces variables seront utilisées par les applications qui en ont besoin.
+
+---
+
+# 3. Démarrer PostgreSQL et Keycloak
+
+Depuis la racine du projet, démarrer uniquement les deux bases PostgreSQL et Keycloak :
+
+```bash
+docker compose up -d postgres-produits postgres-commandes keycloak
 ```
 
 Cette commande démarre :
 
-- PostgreSQL pour `ms-produits`
-- PostgreSQL pour `ms-commandes`
-- Keycloak
+- PostgreSQL pour `ms-produits` ;
+- PostgreSQL pour `ms-commandes` ;
+- Keycloak.
 
 Vérifier les conteneurs :
 
 ```bash
-docker ps
+docker compose ps
 ```
 
 Les ports utilisés sont :
@@ -147,13 +310,15 @@ Keycloak :
 http://localhost:8080
 ```
 
+Laisser ces conteneurs en fonctionnement pendant toute l'utilisation de l'application.
+
 ---
 
-# 5. Démarrer le Config Server
+# 4. Démarrer le Config Server
 
 Le Config Server centralise la configuration des différents services.
 
-La configuration est stockée dans un **dépôt Git séparé** :
+La configuration est stockée dans un dépôt Git séparé :
 
 ```text
 INF2205-tp-microservices-config-repo
@@ -163,10 +328,12 @@ Le Config Server récupère automatiquement cette configuration depuis GitHub au
 
 Ouvrir un nouveau terminal.
 
-Depuis la racine du projet :
+Depuis la racine du projet, charger les variables :
 
 ```bash
-export $(grep -v '^#' .env | xargs)
+set -a
+source .env
+set +a
 ```
 
 Puis :
@@ -201,21 +368,21 @@ Tester la configuration de `ms-produits` :
 curl http://localhost:8888/ms-produits/default
 ```
 
-Le serveur doit retourner la configuration récupérée depuis le dépôt Git de configuration.
-
 Tester également :
 
 ```bash
 curl http://localhost:8888/ms-commandes/default
 ```
 
-Si les réponses sont retournées correctement, le Config Server est opérationnel.
+Le serveur doit retourner la configuration récupérée depuis le dépôt Git de configuration.
 
-> ⚠️ Le `GITHUB_TOKEN` doit être chargé dans le terminal avant le démarrage du Config Server lorsque le dépôt Git de configuration est privé.
+⚠️ Le `GITHUB_TOKEN` doit être chargé dans le terminal avant le démarrage du Config Server lorsque le dépôt Git de configuration est privé.
 
 Laisser le processus en cours d'exécution.
 
-# 6. Démarrer Eureka Server
+---
+
+# 5. Démarrer Eureka Server
 
 Ouvrir un nouveau terminal.
 
@@ -249,14 +416,16 @@ Laisser le processus en cours d'exécution.
 
 ---
 
-# 7. Démarrer `ms-produits`
+# 6. Démarrer ms-produits
 
 Ouvrir un nouveau terminal.
 
 Depuis la racine du projet, charger les variables d'environnement :
 
 ```bash
-export $(grep -v '^#' .env | xargs)
+set -a
+source .env
+set +a
 ```
 
 Puis :
@@ -287,14 +456,16 @@ http://localhost:8082
 
 ---
 
-# 8. Démarrer `ms-commandes`
+# 7. Démarrer ms-commandes
 
 Ouvrir un nouveau terminal.
 
 Depuis la racine du projet :
 
 ```bash
-export $(grep -v '^#' .env | xargs)
+set -a
+source .env
+set +a
 ```
 
 Puis :
@@ -325,7 +496,7 @@ http://localhost:8083
 
 ---
 
-# 9. Démarrer l'API Gateway
+# 8. Démarrer l'API Gateway
 
 Ouvrir un nouveau terminal.
 
@@ -357,7 +528,7 @@ L'API Gateway doit également apparaître dans Eureka.
 
 ---
 
-# 10. Vérifier Eureka
+# 9. Vérifier Eureka
 
 Ouvrir :
 
@@ -387,7 +558,7 @@ curl -s http://localhost:8761/eureka/apps
 
 ---
 
-# 11. Configuration de Keycloak
+# 10. Configuration de Keycloak
 
 Keycloak est utilisé comme serveur d'authentification et d'autorisation de l'architecture.
 
@@ -422,9 +593,11 @@ Le `clientId` utilisé lors de la création d'une commande est récupéré depui
 
 Les utilisateurs de test sont configurés dans Keycloak.
 
-> ⚠️ Les identifiants, mots de passe et tokens JWT ne doivent pas être ajoutés au dépôt Git.
+⚠️ Les identifiants, mots de passe et tokens JWT ne doivent pas être ajoutés au dépôt Git.
 
-# 12. Postman
+---
+
+# 11. Postman
 
 La collection Postman du projet est disponible dans :
 
@@ -469,7 +642,9 @@ Microservices
 
 Les mots de passe, tokens JWT et autres informations sensibles doivent rester dans les variables locales de Postman et ne doivent pas être commités dans Git.
 
-# 13. Ordre de démarrage
+---
+
+# 12. Ordre de démarrage du mode hybride
 
 Pour éviter les problèmes de découverte de services, respecter cet ordre :
 
@@ -497,7 +672,7 @@ Cet ordre permet notamment :
 
 ---
 
-# 14. Résumé des ports
+# 13. Résumé des ports
 
 | Composant | Port |
 |---|---:|
@@ -512,17 +687,25 @@ Cet ordre permet notamment :
 
 ---
 
-# 15. Vérifier PostgreSQL
+# 14. Vérifier PostgreSQL
 
 Vérifier que les conteneurs PostgreSQL sont actifs :
 
-```bash id="g8q2pw"
+```bash
 docker ps
+```
+
+Charger les variables si nécessaire :
+
+```bash
+set -a
+source .env
+set +a
 ```
 
 Tester la base `ms-produits` :
 
-```bash id="j1n7qc"
+```bash
 docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" -it postgres-produits \
 psql -U fst_user -d ms_produits_db \
 -c "SELECT current_user, current_database();"
@@ -530,16 +713,10 @@ psql -U fst_user -d ms_produits_db \
 
 Tester la base `ms-commandes` :
 
-```bash id="c4v8rz"
+```bash
 docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" -it postgres-commandes \
 psql -U fst_user -d ms_commandes_db \
 -c "SELECT current_user, current_database();"
-```
-
-Si la variable n'est pas encore chargée dans le terminal :
-
-```bash id="k9p3sx"
-export $(grep -v '^#' .env | xargs)
 ```
 
 Les commandes doivent retourner respectivement :
@@ -554,7 +731,9 @@ et :
 fst_user | ms_commandes_db
 ```
 
-# 16. Arrêter les applications Spring Boot
+---
+
+# 15. Arrêter les applications Spring Boot
 
 Dans chaque terminal où une application Spring Boot est lancée :
 
@@ -578,7 +757,7 @@ Config Server
 
 ---
 
-# 17. Arrêter Docker
+# 16. Arrêter Docker
 
 Depuis la racine du projet :
 
@@ -586,7 +765,7 @@ Depuis la racine du projet :
 docker compose down
 ```
 
-Cette commande arrête :
+Cette commande arrête les conteneurs Docker du projet, notamment :
 
 - PostgreSQL produits ;
 - PostgreSQL commandes ;
@@ -596,7 +775,7 @@ Les volumes Docker sont conservés.
 
 ---
 
-# 18. Supprimer les volumes Docker
+# 17. Supprimer les volumes Docker
 
 Pour arrêter les conteneurs et supprimer également les volumes :
 
@@ -604,13 +783,13 @@ Pour arrêter les conteneurs et supprimer également les volumes :
 docker compose down -v
 ```
 
-> ⚠️ Cette commande supprime les volumes PostgreSQL et donc les données stockées dans les bases.
+⚠️ Cette commande supprime les volumes PostgreSQL et donc les données stockées dans les bases. Elle supprime également les données persistantes de Keycloak.
 
-À utiliser uniquement si une réinitialisation complète des bases est souhaitée.
+À utiliser uniquement si une réinitialisation complète de l'environnement est souhaitée.
 
 ---
 
-# 19. Dépannage
+# 18. Dépannage
 
 ## Port déjà utilisé
 
@@ -631,8 +810,6 @@ sudo lsof -i :8761
 sudo lsof -i :8888
 ```
 
----
-
 ## Config Server inaccessible
 
 Vérifier que le Config Server est lancé :
@@ -647,8 +824,6 @@ Si aucune réponse n'est obtenue, démarrer :
 cd config-server
 mvn spring-boot:run
 ```
-
----
 
 ## Eureka inaccessible
 
@@ -665,8 +840,6 @@ cd eureka-server
 mvn spring-boot:run
 ```
 
----
-
 ## Un microservice n'apparaît pas dans Eureka
 
 Vérifier que :
@@ -677,8 +850,6 @@ Vérifier que :
 4. le microservice utilise la bonne configuration.
 
 Si nécessaire, redémarrer le microservice après Eureka.
-
----
 
 ## Erreur de connexion PostgreSQL
 
@@ -691,7 +862,9 @@ docker ps
 Vérifier que les variables d'environnement sont chargées :
 
 ```bash
-export $(grep -v '^#' .env | xargs)
+set -a
+source .env
+set +a
 ```
 
 Vérifier que `POSTGRES_PASSWORD` est bien défini, sans afficher sa valeur :
@@ -700,9 +873,7 @@ Vérifier que `POSTGRES_PASSWORD` est bien défini, sans afficher sa valeur :
 test -n "$POSTGRES_PASSWORD" && echo "POSTGRES_PASSWORD chargé"
 ```
 
-Ensuite redémarrer le microservice concerné.
-
----
+Ensuite, redémarrer le microservice concerné.
 
 ## Problème après changement de réseau
 
@@ -726,70 +897,108 @@ Cela permet aux instances de se réenregistrer avec leur nouvelle adresse.
 
 ---
 
-# 20. Commandes rapides
+# 19. Commandes rapides
+
+## Mode entièrement Docker
+
+### Préparer l'environnement
+
+```bash
+cp .env.example .env
+```
+
+Configurer les variables dans `.env`, puis :
+
+```bash
+docker compose up --build -d
+```
+
+### Vérifier les conteneurs
+
+```bash
+docker compose ps
+```
+
+### Consulter les journaux
+
+```bash
+docker compose logs -f
+```
+
+### Arrêter toute l'architecture
+
+```bash
+docker compose down
+```
+
+## Mode hybride
 
 ### Préparer l'environnement
 
 Depuis la racine du projet :
 
-```bash id="v9x1cq"
-export $(grep -v '^#' .env | xargs)
+```bash
+set -a
+source .env
+set +a
 ```
 
 ### Démarrer l'infrastructure
 
-```bash id="z7k2mw"
-docker compose up -d
+```bash
+docker compose up -d postgres-produits postgres-commandes keycloak
 ```
 
 ### Vérifier Docker
 
-```bash id="p4n8rs"
-docker ps
+```bash
+docker compose ps
 ```
 
 ### Config Server
 
-```bash id="s6t3jd"
+```bash
 cd config-server
 mvn spring-boot:run
 ```
 
 ### Eureka
 
-```bash id="a2q5yk"
+```bash
 cd eureka-server
 mvn spring-boot:run
 ```
 
 ### ms-produits
 
-```bash id="h8c4nv"
+```bash
 cd ms-produits
 mvn spring-boot:run
 ```
 
 ### ms-commandes
 
-```bash id="j3r7xp"
+```bash
 cd ms-commandes
 mvn spring-boot:run
 ```
 
 ### API Gateway
 
-```bash id="w5d9kf"
+```bash
 cd api-gateway
 mvn spring-boot:run
 ```
 
 ### Arrêter Docker
 
-```bash id="e6m2qs"
+```bash
 docker compose down
 ```
 
-# 21. URLs principales
+---
+
+# 20. URLs principales
 
 | Service | Adresse |
 |---|---|

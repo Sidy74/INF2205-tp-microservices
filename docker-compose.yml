@@ -1,4 +1,9 @@
 services:
+
+  # =========================
+  # BASES DE DONNÉES
+  # =========================
+
   postgres-produits:
     image: postgres:17
     container_name: postgres-produits
@@ -11,6 +16,11 @@ services:
       - "5433:5432"
     volumes:
       - postgres-produits-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fst_user -d ms_produits_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   postgres-commandes:
     image: postgres:17
@@ -24,18 +34,206 @@ services:
       - "5434:5432"
     volumes:
       - postgres-commandes-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fst_user -d ms_commandes_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =========================
+  # AUTHENTIFICATION
+  # =========================
 
   keycloak:
-    image: quay.io/keycloak/keycloak:latest
+    image: quay.io/keycloak/keycloak:26.8.1
     container_name: keycloak
     restart: unless-stopped
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
-    command: start-dev
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: http://localhost:8080
+    command: ["start-dev", "--import-realm"]
     ports:
       - "8080:8080"
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+      - ./backups/keycloak/realm-export.json:/opt/keycloak/data/import/gestion-commerciale-realm.json:ro
+
+  # =========================
+  # CONFIG SERVER
+  # =========================
+
+  config-server:
+    build:
+      context: ./config-server
+    container_name: config-server
+    restart: on-failure
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+    ports:
+      - "8888:8888"
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:8888/actuator/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  # =========================
+  # EUREKA SERVER
+  # =========================
+  eureka-server:
+    build:
+      context: ./eureka-server
+    container_name: eureka-server
+    restart: on-failure
+    environment:
+#      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
+      CONFIG_SERVER_URL: http://config-server:8888
+    ports:
+      - "8761:8761"
+    depends_on:
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8761/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  # =========================
+  # MICROSERVICE PRODUITS
+  # =========================
+  ms-produits:
+    build:
+      context: ./ms-produits
+    container_name: ms-produits
+    restart: on-failure
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+#      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      CONFIG_SERVER_URL: http://config-server:8888
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres-produits:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8082/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+  # =========================
+  # MICROSERVICE COMMANDES
+  # =========================
+  ms-commandes:
+    build:
+      context: ./ms-commandes
+    container_name: ms-commandes
+    restart: on-failure
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+#      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      CONFIG_SERVER_URL: http://config-server:8888
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres-commandes:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      ms-produits:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8083/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+  # =========================
+  # API GATEWAY
+  # =========================
+  api-gateway:
+    build:
+      context: ./api-gateway
+    container_name: api-gateway
+    restart: on-failure
+    environment:
+#      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
+      CONFIG_SERVER_URL: http://config-server:8888
+    ports:
+      - "8081:8081"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      ms-produits:
+        condition: service_healthy
+      ms-commandes:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+# =========================
+# VOLUMES PERSISTANTS
+# =========================
 
 volumes:
   postgres-produits-data:
   postgres-commandes-data:
+  keycloak-data:
+
+
+
+#services:
+#  postgres-produits:
+#    image: postgres:17
+#    container_name: postgres-produits
+#    restart: unless-stopped
+#    environment:
+#      POSTGRES_DB: ms_produits_db
+#      POSTGRES_USER: fst_user
+#      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+#    ports:
+#      - "5433:5432"
+#    volumes:
+#      - postgres-produits-data:/var/lib/postgresql/data
+#
+#  postgres-commandes:
+#    image: postgres:17
+#    container_name: postgres-commandes
+#    restart: unless-stopped
+#    environment:
+#      POSTGRES_DB: ms_commandes_db
+#      POSTGRES_USER: fst_user
+#      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+#    ports:
+#      - "5434:5432"
+#    volumes:
+#      - postgres-commandes-data:/var/lib/postgresql/data
+#
+#  keycloak:
+#    image: quay.io/keycloak/keycloak:latest
+#    container_name: keycloak
+#    restart: unless-stopped
+#    environment:
+#      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+#      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+#    command: start-dev
+#    ports:
+#      - "8080:8080"
+#
+#volumes:
+#  postgres-produits-data:
+#  postgres-commandes-data:

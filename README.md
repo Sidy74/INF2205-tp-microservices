@@ -47,16 +47,18 @@ L'architecture respecte le principe suivant :
           └─────────────────┘       └─────────────────┘
 
 
-                    ┌─────────────────────┐
-                    │    Eureka Server    │
-                    │        :8761        │
-                    └─────────────────────┘
+          ┌─────────────────────┐
+          │    Eureka Server    │
+          │        :8761        │
+          └─────────────────────┘
 
-                    ┌─────────────────────┐
-                    │    Config Server    │
-                    │        :8888        │
-                    └─────────────────────┘
+          ┌─────────────────────┐
+          │    Config Server    │
+          │        :8888        │
+          └─────────────────────┘
 ```
+
+Eureka assure la découverte dynamique des services, tandis que Config Server centralise leur configuration.
 
 ---
 
@@ -224,7 +226,7 @@ Le microservice `ms-produits` est responsable de la gestion du catalogue des pro
 
 ## Endpoints principaux
 
-```text
+```http
 POST   /api/produits
 GET    /api/produits
 GET    /api/produits/{id}
@@ -277,7 +279,7 @@ Une commande contient plusieurs lignes de commande.
 
 ## Endpoints principaux
 
-```text
+```http
 POST  /api/commandes
 GET   /api/commandes
 GET   /api/commandes/{id}
@@ -333,7 +335,7 @@ Cette approche permet d'éviter un accès direct de `ms-commandes` à la base de
 
 # 🔎 Eureka Server
 
-Eureka joue le rôle de **service discovery**.
+Eureka joue le rôle de **Service Discovery**.
 
 Les services suivants s'enregistrent auprès d'Eureka :
 
@@ -400,7 +402,7 @@ Les clients n'ont pas besoin d'appeler directement les microservices.
 ```text
 /api/produits/**
         ↓
-ms-produits
+   ms-produits
 ```
 
 ### Commandes
@@ -408,7 +410,7 @@ ms-produits
 ```text
 /api/commandes/**
         ↓
-ms-commandes
+   ms-commandes
 ```
 
 Les routes utilisent la découverte Eureka :
@@ -454,7 +456,9 @@ GESTIONNAIRE
 ADMIN
 ```
 
-Les utilisateurs authentifiés obtiennent un token JWT contenant leurs rôles.
+Les utilisateurs s'authentifient auprès de Keycloak et obtiennent un token JWT contenant leurs rôles.
+
+Le client transmet ensuite ce token dans l'en-tête `Authorization` de ses requêtes à l'API Gateway.
 
 Les microservices `ms-produits` et `ms-commandes` fonctionnent comme **OAuth2 Resource Server** et valident les JWT émis par Keycloak.
 
@@ -517,37 +521,119 @@ Les informations sur les produits nécessaires aux commandes sont obtenues via O
 
 ---
 
-# 🐳 Docker
+# 🐳 Docker et Docker Compose
 
-Docker Compose est utilisé pour lancer l'infrastructure PostgreSQL et Keycloak.
+L'ensemble de l'architecture est conteneurisé avec **Docker** et orchestré à l'aide de **Docker Compose**.
 
-Les services Docker sont :
-
-```text
-postgres-produits
-postgres-commandes
-keycloak
-```
-
-Le fichier principal est :
+Docker Compose permet de construire, démarrer et gérer les différents composants de l'application à partir d'un fichier unique :
 
 ```text
 docker-compose.yml
 ```
 
-Les variables sensibles sont stockées localement dans :
+## Services conteneurisés
+
+L'infrastructure comprend **huit conteneurs** :
+
+| Conteneur | Rôle | Port |
+|---|---|---:|
+| `keycloak` | Authentification et gestion des rôles | 8080 |
+| `config-server` | Configuration centralisée | 8888 |
+| `eureka-server` | Découverte des services | 8761 |
+| `api-gateway` | Routage et sécurisation des API | 8081 |
+| `ms-produits` | Gestion des produits | 8082 |
+| `ms-commandes` | Gestion des commandes | 8083 |
+| `postgres-produits` | Base de données des produits | 5433 |
+| `postgres-commandes` | Base de données des commandes | 5434 |
+
+## Construction et démarrage
+
+Construire les images Docker :
+
+```bash
+docker compose build
+```
+
+Démarrer l'ensemble de l'architecture :
+
+```bash
+docker compose up -d
+```
+
+Vérifier l'état des conteneurs :
+
+```bash
+docker compose ps
+```
+
+Consulter les journaux :
+
+```bash
+docker compose logs -f
+```
+
+Arrêter les conteneurs :
+
+```bash
+docker compose down
+```
+
+## Configuration et variables d'environnement
+
+Les paramètres sensibles sont définis dans un fichier local :
 
 ```text
 .env
 ```
 
-Un fichier modèle est fourni :
+Le fichier modèle fourni est :
 
 ```text
 .env.example
 ```
 
-Le fichier `.env` n'est pas versionné dans Git.
+Les variables principales comprennent :
+
+- `POSTGRES_PASSWORD` : mot de passe des bases PostgreSQL.
+- `GITHUB_TOKEN` : jeton d'accès au dépôt privé de configuration GitHub.
+
+Le fichier `.env` est exclu du versionnement Git afin de protéger les informations sensibles.
+
+## Persistance des données
+
+Des volumes Docker nommés assurent la persistance des données :
+
+- `postgres-produits-data`
+- `postgres-commandes-data`
+- `keycloak-data`
+
+Les données des bases PostgreSQL et de Keycloak sont ainsi conservées lors du redémarrage des conteneurs.
+
+## Configuration centralisée
+
+Le Config Server récupère les fichiers YAML depuis le dépôt GitHub privé :
+
+```text
+INF2205-tp-microservices-config-repo
+```
+
+Les microservices utilisent ce serveur pour charger leurs configurations au démarrage.
+
+## Vérification de l'architecture
+
+Après le démarrage, les interfaces et points d'accès suivants permettent de vérifier le fonctionnement :
+
+| Composant | URL |
+|---|---|
+| Eureka Dashboard | http://localhost:8761 |
+| Keycloak | http://localhost:8080 |
+| Config Server | http://localhost:8888 |
+| API Gateway | http://localhost:8081 |
+| Swagger UI | http://localhost:8081/swagger-ui/index.html |
+
+Les conteneurs disposent de contrôles de santé (*healthchecks*) pour vérifier la disponibilité des services compatibles.
+
+La validation de l'environnement Docker a confirmé le démarrage des huit conteneurs, l'enregistrement des microservices dans Eureka et l'accès à Swagger via l'API Gateway.
 
 ---
 
@@ -603,7 +689,7 @@ Les scénarios suivants ont été vérifiés :
 
 Les tests unitaires et d'intégration des microservices ont également été exécutés.
 
-État actuel :
+Bilan des tests :
 
 ```text
 ms-produits  : 13 tests — 0 échec
@@ -635,31 +721,31 @@ Quelques exemples :
 
 ### Produit inexistant
 
-```text
+```http
 404 Not Found
 ```
 
 ### Données invalides
 
-```text
+```http
 400 Bad Request
 ```
 
 ### Accès sans authentification
 
-```text
+```http
 401 Unauthorized
 ```
 
 ### Rôle insuffisant
 
-```text
+```http
 403 Forbidden
 ```
 
 ### `ms-produits` indisponible
 
-```text
+```http
 503 Service Unavailable
 ```
 
@@ -720,7 +806,7 @@ Les instructions détaillées d'installation, de configuration et de démarrage 
 START-README.md
 ```
 
-Le démarrage général suit l'ordre :
+Le démarrage général suit l'ordre logique suivant :
 
 ```text
 PostgreSQL + Keycloak

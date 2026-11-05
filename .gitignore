@@ -1,9 +1,20 @@
+# Maven
 target/
+
+# IDE
 .classpath
 .project
 .settings/
 .idea/
 *.iml
 .vscode/
+
+# Logs
 *.log
-.envconfig-repo/
+
+# Variables et secrets
+.env
+**/.env
+
+# Dépôt de configuration indépendant
+/config-repo/
