@@ -797,33 +797,29 @@ http://localhost:8081/swagger-ui/index.html
 Les documentations OpenAPI des microservices sont exposées à travers le Gateway.
 
 ---
-
 # 🚀 Installation et lancement
 
-Les instructions détaillées d'installation, de configuration et de démarrage sont disponibles dans :
+Le projet utilise **Docker Compose comme mode unique de démarrage et de déploiement**.
+
+Les instructions détaillées d'installation, de configuration et de lancement sont disponibles dans le fichier :
 
 ```text
 START-README.md
 ```
 
-Le démarrage général suit l'ordre logique suivant :
+Après avoir configuré les variables d'environnement dans le fichier `.env`, l'ensemble de l'architecture peut être construit et démarré avec une seule commande :
 
-```text
-PostgreSQL + Keycloak
-        ↓
-Config Server
-        ↓
-Eureka Server
-        ↓
-ms-produits + ms-commandes
-        ↓
-API Gateway
-        ↓
-Tests Postman
+```bash
+docker compose up --build -d
 ```
 
----
+Cette commande lance les huit conteneurs nécessaires au fonctionnement de l'application.
 
+Les services peuvent ensuite être vérifiés avec :
+
+```bash
+docker compose ps
+```
 # 📊 État du projet
 
 ## ✅ TP fonctionnel

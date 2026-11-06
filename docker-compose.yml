@@ -90,7 +90,6 @@ services:
     container_name: eureka-server
     restart: on-failure
     environment:
-#      SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
       CONFIG_SERVER_URL: http://config-server:8888
     ports:
       - "8761:8761"
@@ -114,7 +113,6 @@ services:
     restart: on-failure
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-#      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
       CONFIG_SERVER_URL: http://config-server:8888
     ports:
       - "8082:8082"
@@ -139,7 +137,6 @@ services:
     restart: on-failure
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-#      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
       CONFIG_SERVER_URL: http://config-server:8888
     ports:
       - "8083:8083"
@@ -165,7 +162,6 @@ services:
     container_name: api-gateway
     restart: on-failure
     environment:
-#      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
       CONFIG_SERVER_URL: http://config-server:8888
     ports:
       - "8081:8081"
@@ -193,47 +189,3 @@ volumes:
   postgres-produits-data:
   postgres-commandes-data:
   keycloak-data:
-
-
-
-#services:
-#  postgres-produits:
-#    image: postgres:17
-#    container_name: postgres-produits
-#    restart: unless-stopped
-#    environment:
-#      POSTGRES_DB: ms_produits_db
-#      POSTGRES_USER: fst_user
-#      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-#    ports:
-#      - "5433:5432"
-#    volumes:
-#      - postgres-produits-data:/var/lib/postgresql/data
-#
-#  postgres-commandes:
-#    image: postgres:17
-#    container_name: postgres-commandes
-#    restart: unless-stopped
-#    environment:
-#      POSTGRES_DB: ms_commandes_db
-#      POSTGRES_USER: fst_user
-#      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-#    ports:
-#      - "5434:5432"
-#    volumes:
-#      - postgres-commandes-data:/var/lib/postgresql/data
-#
-#  keycloak:
-#    image: quay.io/keycloak/keycloak:latest
-#    container_name: keycloak
-#    restart: unless-stopped
-#    environment:
-#      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-#      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
-#    command: start-dev
-#    ports:
-#      - "8080:8080"
-#
-#volumes:
-#  postgres-produits-data:
-#  postgres-commandes-data:
