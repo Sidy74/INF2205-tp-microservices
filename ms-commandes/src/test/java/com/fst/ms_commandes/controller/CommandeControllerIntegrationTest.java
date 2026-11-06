@@ -4,6 +4,7 @@ import com.fst.ms_commandes.config.SecurityConfig;
 import com.fst.ms_commandes.dto.CommandeCreationDTO;
 import com.fst.ms_commandes.dto.CommandeDTO;
 import com.fst.ms_commandes.dto.LigneCommandeDTO;
+import com.fst.ms_commandes.exception.CommandeInvalideException;
 import com.fst.ms_commandes.service.CommandeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -130,7 +131,6 @@ class CommandeControllerIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
-
     @Test
     void creerCommande_avecRoleInsuffisant_doitRetourner403() throws Exception {
 
@@ -155,7 +155,6 @@ class CommandeControllerIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
-
     @Test
     void obtenirCommande_avecGestionnaire_doitRetourner200() throws Exception {
 
@@ -178,7 +177,6 @@ class CommandeControllerIntegrationTest {
                 .andExpect(jsonPath("$.clientId").value("client1"));
     }
 
-
     @Test
     void obtenirCommande_avecClient_doitRetourner403() throws Exception {
 
@@ -190,7 +188,6 @@ class CommandeControllerIntegrationTest {
                 )
                 .andExpect(status().isForbidden());
     }
-
 
     @Test
     void obtenirCommande_sansAuthentification_doitRetourner401() throws Exception {
@@ -247,6 +244,27 @@ class CommandeControllerIntegrationTest {
                 )
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statut").value("LIVREE"));
+    }
+
+    @Test
+    void annulerCommandeLivree_avecGestionnaire_doitRetourner400() throws Exception {
+        when(commandeService.changerStatut(
+                1L,
+                com.fst.ms_commandes.entity.StatutCommande.ANNULEE
+        )).thenThrow(new CommandeInvalideException(
+                "Une commande livrée ne peut plus changer de statut"
+        ));
+
+        mockMvc.perform(
+                        patch("/api/commandes/1/statut")
+                                .with(jwt().authorities(
+                                        new SimpleGrantedAuthority("ROLE_GESTIONNAIRE")
+                                ))
+                                .param("statut", "ANNULEE")
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error")
+                        .value("Une commande livrée ne peut plus changer de statut"));
     }
 
     @Test
