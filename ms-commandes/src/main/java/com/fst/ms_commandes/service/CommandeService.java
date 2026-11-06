@@ -239,7 +239,7 @@ public class CommandeService {
                 .orElseThrow(() -> new CommandeNotFoundException(id));
 
         if (commande.getStatut() == StatutCommande.LIVREE
-                && nouveauStatut == StatutCommande.ANNULEE) {
+                && nouveauStatut != StatutCommande.LIVREE) {
             throw new CommandeInvalideException(
                     "Une commande livrée ne peut pas être annulée"
             );
