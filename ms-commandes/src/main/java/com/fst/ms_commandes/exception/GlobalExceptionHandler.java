@@ -13,6 +13,15 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(ServiceProduitIndisponibleException.class)
+    public ResponseEntity<String> handleServiceProduitIndisponible(
+            ServiceProduitIndisponibleException e) {
+
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(e.getMessage());
+    }
+
     @ExceptionHandler(FeignException.class)
     public ResponseEntity<String> handleFeignException(FeignException e) {
 

@@ -1,6 +1,5 @@
 package com.fst.ms_commandes.service;
 
-import com.fst.ms_commandes.client.ProduitClient;
 import com.fst.ms_commandes.dto.CommandeDTO;
 import com.fst.ms_commandes.dto.LigneCommandeDTO;
 import com.fst.ms_commandes.dto.ProduitResponseDTO;
@@ -26,7 +25,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 @RequiredArgsConstructor
 public class CommandeService {
     private final CommandeRepository commandeRepository;
-    private final ProduitClient produitClient;
+    private final ProduitServiceClient produitServiceClient;
 
     private String genererNumeroCommande() {
         String numero;
@@ -60,14 +59,14 @@ public class CommandeService {
                 .map(ligneDTO -> {
 
                     ProduitResponseDTO produit =
-                            produitClient.obtenirProduit(ligneDTO.getProduitId());
+                            produitServiceClient.obtenirProduit(ligneDTO.getProduitId());
                     if (!produit.getActif()) {
                         throw new CommandeInvalideException(
                                 "Le produit " + produit.getReference() + " est inactif"
                         );
                     }
 
-                    if (!produitClient.verifierDisponibilite(
+                    if (!produitServiceClient.verifierDisponibilite(
                             ligneDTO.getProduitId(),
                             ligneDTO.getQuantite())) {
 
@@ -122,7 +121,7 @@ public class CommandeService {
 
         // Récupération du produit via ms-produits
         ProduitResponseDTO produit =
-                produitClient.obtenirProduit(ligneDTO.getProduitId());
+                produitServiceClient.obtenirProduit(ligneDTO.getProduitId());
 
         // Le produit doit être actif
         if (!produit.getActif()) {
@@ -132,7 +131,7 @@ public class CommandeService {
         }
 
         // Vérification de la disponibilité de la quantité ajoutée
-        if (!produitClient.verifierDisponibilite(
+        if (!produitServiceClient.verifierDisponibilite(
                 ligneDTO.getProduitId(),
                 ligneDTO.getQuantite())) {
 

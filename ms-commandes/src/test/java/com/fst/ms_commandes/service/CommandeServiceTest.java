@@ -1,12 +1,10 @@
 package com.fst.ms_commandes.service;
 
-import com.fst.ms_commandes.client.ProduitClient;
 import com.fst.ms_commandes.dto.CommandeCreationDTO;
 import com.fst.ms_commandes.dto.CommandeDTO;
 import com.fst.ms_commandes.dto.LigneCommandeDTO;
 import com.fst.ms_commandes.dto.ProduitResponseDTO;
 import com.fst.ms_commandes.entity.Commande;
-import com.fst.ms_commandes.entity.LigneCommande;
 import com.fst.ms_commandes.entity.StatutCommande;
 import com.fst.ms_commandes.exception.CommandeInvalideException;
 import com.fst.ms_commandes.exception.CommandeNotFoundException;
@@ -37,7 +35,7 @@ class CommandeServiceTest {
     private CommandeRepository commandeRepository;
 
     @Mock
-    private ProduitClient produitClient;
+    private ProduitServiceClient produitServiceClient;
 
     @InjectMocks
     private CommandeService commandeService;
@@ -76,7 +74,7 @@ class CommandeServiceTest {
                 () -> commandeService.creer(demande)
         );
 
-        verifyNoInteractions(produitClient);
+        verifyNoInteractions(produitServiceClient);
         verify(commandeRepository, never()).save(any());
     }
 
@@ -92,7 +90,7 @@ class CommandeServiceTest {
         produit.setPrix(new BigDecimal("500000"));
         produit.setActif(false);
 
-        when(produitClient.obtenirProduit(1L))
+        when(produitServiceClient.obtenirProduit(1L))
                 .thenReturn(produit);
 
         LigneCommandeDTO ligne = new LigneCommandeDTO();
@@ -107,9 +105,9 @@ class CommandeServiceTest {
                 () -> commandeService.creer(demande)
         );
 
-        verify(produitClient).obtenirProduit(1L);
+        verify(produitServiceClient).obtenirProduit(1L);
 
-        verify(produitClient, never())
+        verify(produitServiceClient, never())
                 .verifierDisponibilite(any(), any());
 
         verify(commandeRepository, never()).save(any());
@@ -127,10 +125,10 @@ class CommandeServiceTest {
         produit.setPrix(new BigDecimal("500000"));
         produit.setActif(true);
 
-        when(produitClient.obtenirProduit(1L))
+        when(produitServiceClient.obtenirProduit(1L))
                 .thenReturn(produit);
 
-        when(produitClient.verifierDisponibilite(1L, 10))
+        when(produitServiceClient.verifierDisponibilite(1L, 10))
                 .thenReturn(false);
 
         LigneCommandeDTO ligne = new LigneCommandeDTO();
@@ -145,9 +143,9 @@ class CommandeServiceTest {
                 () -> commandeService.creer(demande)
         );
 
-        verify(produitClient).obtenirProduit(1L);
+        verify(produitServiceClient).obtenirProduit(1L);
 
-        verify(produitClient)
+        verify(produitServiceClient)
                 .verifierDisponibilite(1L, 10);
 
         verify(commandeRepository, never()).save(any());
@@ -165,10 +163,10 @@ class CommandeServiceTest {
         produit.setPrix(new BigDecimal("500000"));
         produit.setActif(true);
 
-        when(produitClient.obtenirProduit(1L))
+        when(produitServiceClient.obtenirProduit(1L))
                 .thenReturn(produit);
 
-        when(produitClient.verifierDisponibilite(1L, 2))
+        when(produitServiceClient.verifierDisponibilite(1L, 2))
                 .thenReturn(true);
 
         when(commandeRepository.findByNumero(any()))
@@ -212,9 +210,9 @@ class CommandeServiceTest {
                 resultat.getLignes().size()
         );
 
-        verify(produitClient).obtenirProduit(1L);
+        verify(produitServiceClient).obtenirProduit(1L);
 
-        verify(produitClient)
+        verify(produitServiceClient)
                 .verifierDisponibilite(1L, 2);
 
         verify(commandeRepository)

@@ -14,6 +14,7 @@ L'application est composée de plusieurs services indépendants communiquant ent
 - Spring Cloud Config
 - OpenFeign
 - Spring Cloud Gateway
+- Resilience4j
 - Keycloak
 - PostgreSQL
 - Docker / Docker Compose
@@ -38,9 +39,9 @@ L'architecture respecte le principe suivant :
           ┌─────────────────┐       ┌─────────────────┐
           │   ms-produits   │       │   ms-commandes  │
           │      :8082      │◀──────│      :8083      │
-          └────────┬────────┘ Feign └────────┬────────┘
-                   │                         │
-                   ▼                         ▼
+          └────────┬────────┘ Feign │                 │
+                   │                │ Circuit Breaker │
+                   ▼                ▼                 │
           ┌─────────────────┐       ┌─────────────────┐
           │ PostgreSQL      │       │ PostgreSQL      │
           │ produits :5433  │       │ commandes :5434 │
@@ -60,6 +61,8 @@ L'architecture respecte le principe suivant :
 
 Eureka assure la découverte dynamique des services, tandis que Config Server centralise leur configuration.
 
+Resilience4j permet à `ms-commandes` de gérer les défaillances temporaires de `ms-produits` grâce au mécanisme Circuit Breaker.
+
 ---
 
 ## 🎯 Objectifs
@@ -75,6 +78,7 @@ Le projet permet de mettre en pratique les principaux concepts d'une architectur
 - gestion des rôles ;
 - validation des données ;
 - gestion centralisée des erreurs ;
+- gestion de la résilience entre microservices ;
 - conteneurisation des bases de données ;
 - tests des différents scénarios fonctionnels et de sécurité.
 
@@ -115,6 +119,13 @@ Le projet contient les composants suivants :
 - Spring Cloud Netflix Eureka
 - Spring Cloud OpenFeign
 - Spring Cloud Gateway
+
+### Résilience
+
+- Resilience4j 2.4.0
+- Circuit Breaker
+- Fallback
+- Spring Boot Actuator
 
 ### Sécurité
 
@@ -275,7 +286,8 @@ Une commande contient plusieurs lignes de commande.
 - vérifier la disponibilité du stock ;
 - récupérer le prix depuis `ms-produits` ;
 - calculer le montant total ;
-- gérer les erreurs lorsque `ms-produits` est indisponible.
+- gérer les erreurs lorsque `ms-produits` est indisponible ;
+- protéger les appels à `ms-produits` avec Resilience4j.
 
 ## Endpoints principaux
 
@@ -330,6 +342,255 @@ public interface ProduitClient {
 Le token JWT de l'utilisateur authentifié est également transmis lors des appels Feign afin que `ms-produits` puisse appliquer ses propres règles de sécurité.
 
 Cette approche permet d'éviter un accès direct de `ms-commandes` à la base de données de `ms-produits`.
+
+---
+
+# 🛡️ Résilience avec Resilience4j — Circuit Breaker
+
+## Présentation
+
+Dans une architecture microservices, un service peut devenir temporairement indisponible à cause d'une panne, d'un problème réseau ou d'une surcharge.
+
+Dans notre architecture, `ms-commandes` dépend de `ms-produits` pour récupérer les informations des produits et vérifier leur disponibilité.
+
+Sans mécanisme de résilience, les appels répétés vers un service indisponible peuvent entraîner des erreurs en cascade et dégrader le fonctionnement de l'application.
+
+Pour répondre à ce problème, le projet intègre **Resilience4j**, avec le mécanisme **Circuit Breaker**.
+
+## Fonctionnement
+
+Le Circuit Breaker surveille les appels effectués vers `ms-produits` et adapte son comportement en fonction des échecs observés.
+
+Il possède trois états principaux :
+
+| État | Description |
+|---|---|
+| `CLOSED` | Les appels sont autorisés. Le Circuit Breaker surveille les échecs. |
+| `OPEN` | Les appels vers le service distant sont bloqués et le fallback est exécuté. |
+| `HALF_OPEN` | Un nombre limité d'appels de test est autorisé pour vérifier si le service est de nouveau disponible. |
+
+### Cycle de fonctionnement
+
+```text
+             ┌─────────────────┐
+             │     CLOSED      │
+             │ Appels autorisés│
+             └────────┬────────┘
+                      │
+             Seuil d'échec atteint
+                      │
+                      ▼
+             ┌─────────────────┐
+             │      OPEN       │
+             │ Appels bloqués  │
+             └────────┬────────┘
+                      │
+               Après 10 secondes
+                      │
+                      ▼
+             ┌─────────────────┐
+             │    HALF_OPEN    │
+             │ Appels de test  │
+             └────────┬────────┘
+                      │
+             ┌────────┴────────┐
+             │                 │
+        Succès des tests   Échec des tests
+             │                 │
+             ▼                 ▼
+          CLOSED              OPEN
+```
+
+## Configuration
+
+La configuration du Circuit Breaker est centralisée dans le dépôt Git de configuration, dans le fichier :
+
+```text
+ms-commandes.yml
+```
+
+Configuration utilisée :
+
+```yaml
+resilience4j:
+  circuitbreaker:
+    instances:
+      produitsService:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        eventConsumerBufferSize: 10
+        ignoreExceptions:
+          - feign.FeignException$NotFound
+```
+
+### Explication des paramètres
+
+| Paramètre | Valeur | Rôle |
+|---|---:|---|
+| `slidingWindowType` | `COUNT_BASED` | Fenêtre basée sur le nombre d'appels |
+| `slidingWindowSize` | `5` | Nombre d'appels analysés |
+| `minimumNumberOfCalls` | `5` | Nombre minimum d'appels avant calcul du taux d'échec |
+| `failureRateThreshold` | `50` | Seuil d'échec de 50 % |
+| `waitDurationInOpenState` | `10s` | Durée passée en état OPEN |
+| `permittedNumberOfCallsInHalfOpenState` | `3` | Nombre d'appels de test autorisés |
+| `automaticTransitionFromOpenToHalfOpenEnabled` | `true` | Transition automatique vers HALF_OPEN |
+| `registerHealthIndicator` | `true` | Exposition de l'état dans Actuator |
+
+Les erreurs `404 Not Found` provenant de Feign sont ignorées par le calcul du Circuit Breaker, car elles correspondent à un problème de ressource inexistante et non à une indisponibilité du service.
+
+## Intégration dans le code
+
+Les appels vers `ms-produits` sont protégés dans `ProduitServiceClient`.
+
+Exemple :
+
+```java
+@CircuitBreaker(
+        name = "produitsService",
+        fallbackMethod = "obtenirProduitFallback"
+)
+public ProduitResponseDTO obtenirProduit(Long id) {
+    return produitClient.obtenirProduit(id);
+}
+```
+
+La méthode de fallback permet de gérer les erreurs lorsque le service distant ne répond pas correctement :
+
+```java
+public ProduitResponseDTO obtenirProduitFallback(
+        Long id,
+        Throwable exception
+) {
+    if (exception instanceof FeignException.NotFound notFound) {
+        throw notFound;
+    }
+
+    throw new ServiceProduitIndisponibleException(
+            "Le service des produits est momentanément indisponible",
+            exception
+    );
+}
+```
+
+Le même mécanisme est appliqué à la vérification de disponibilité du stock.
+
+Les erreurs d'indisponibilité sont converties en réponse HTTP `503 Service Unavailable` grâce à la gestion centralisée des exceptions.
+
+Les erreurs `404` restent des réponses `404 Not Found`.
+
+## Surveillance avec Spring Boot Actuator
+
+Spring Boot Actuator permet de consulter l'état du Circuit Breaker et les événements générés.
+
+Les principaux endpoints exposés sont :
+
+| Endpoint | Description |
+|---|---|
+| `/actuator/health` | État général de l'application |
+| `/actuator/circuitbreakers` | État des Circuit Breakers |
+| `/actuator/circuitbreakers/produitsService` | Informations détaillées sur le Circuit Breaker |
+| `/actuator/circuitbreakerevents` | Liste des événements |
+| `/actuator/circuitbreakerevents/produitsService` | Événements du Circuit Breaker `produitsService` |
+
+Exemple :
+
+```bash
+curl http://localhost:8083/actuator/circuitbreakers
+```
+
+Pour consulter les événements :
+
+```bash
+curl http://localhost:8083/actuator/circuitbreakerevents
+```
+
+Ces endpoints permettent notamment d'observer les transitions entre les états `CLOSED`, `OPEN` et `HALF_OPEN`.
+
+## Tests de résilience réalisés
+
+Le fonctionnement du Circuit Breaker a été vérifié dans l'environnement Docker.
+
+### 1. État initial
+
+Le Circuit Breaker est initialement dans l'état :
+
+```text
+CLOSED
+```
+
+Les appels vers `ms-produits` sont autorisés.
+
+### 2. Indisponibilité de ms-produits
+
+Le microservice `ms-produits` est arrêté volontairement :
+
+```bash
+docker compose stop ms-produits
+```
+
+Une tentative de création de commande nécessite alors un appel vers le service des produits.
+
+L'appel échoue et l'application retourne :
+
+```http
+503 Service Unavailable
+```
+
+Le message retourné indique que le service des produits est momentanément indisponible.
+
+Après le nombre d'échecs requis, le Circuit Breaker passe à l'état :
+
+```text
+OPEN
+```
+
+### 3. Passage à HALF_OPEN
+
+Après les 10 secondes configurées, le Circuit Breaker passe automatiquement à :
+
+```text
+HALF_OPEN
+```
+
+Un nombre limité d'appels de test est autorisé afin de vérifier si le service distant est de nouveau disponible.
+
+Lorsque le service reste indisponible, les appels de test échouent et le Circuit Breaker retourne à l'état `OPEN`.
+
+### 4. Rétablissement du service
+
+Le microservice `ms-produits` est redémarré :
+
+```bash
+docker compose start ms-produits
+```
+
+Après son rétablissement, les appels de test peuvent réussir.
+
+Le Circuit Breaker constate le succès des appels et revient à l'état :
+
+```text
+CLOSED
+```
+
+### Résultat
+
+Les tests ont permis de vérifier :
+
+- la détection de l'indisponibilité de `ms-produits` ;
+- le passage de `CLOSED` à `OPEN` ;
+- le passage automatique de `OPEN` à `HALF_OPEN` ;
+- le retour à `OPEN` lorsque les appels de test échouent ;
+- le rétablissement du service ;
+- le retour de `HALF_OPEN` à `CLOSED` après des appels réussis ;
+- la consultation des événements avec Actuator.
+
+Le mécanisme Circuit Breaker est donc intégré et fonctionnel dans l'architecture.
 
 ---
 
@@ -560,22 +821,70 @@ Démarrer l'ensemble de l'architecture :
 docker compose up -d
 ```
 
+Construire et démarrer en une seule commande :
+
+```bash
+docker compose up --build -d
+```
+
 Vérifier l'état des conteneurs :
 
 ```bash
 docker compose ps
 ```
 
-Consulter les journaux :
+## Consulter les journaux (logs)
+
+Afficher les logs de tous les services :
 
 ```bash
 docker compose logs -f
 ```
 
-Arrêter les conteneurs :
+Afficher les logs d'un service particulier :
+
+```bash
+docker compose logs -f ms-commandes
+```
+
+Afficher les 100 dernières lignes :
+
+```bash
+docker compose logs --tail=100 ms-commandes
+```
+
+Afficher les logs récents depuis les 10 dernières minutes :
+
+```bash
+docker compose logs --since=10m ms-commandes
+```
+
+Suivre les logs de `ms-produits` :
+
+```bash
+docker compose logs -f ms-produits
+```
+
+Ces commandes sont particulièrement utiles pour diagnostiquer les erreurs de démarrage, les problèmes de communication entre microservices et les erreurs de connexion aux bases de données.
+
+## Arrêter les conteneurs
+
+Arrêter les conteneurs sans supprimer les volumes :
 
 ```bash
 docker compose down
+```
+
+Arrêter un service particulier :
+
+```bash
+docker compose stop ms-produits
+```
+
+Redémarrer un service :
+
+```bash
+docker compose start ms-produits
 ```
 
 ## Configuration et variables d'environnement
@@ -608,6 +917,8 @@ Des volumes Docker nommés assurent la persistance des données :
 - `keycloak-data`
 
 Les données des bases PostgreSQL et de Keycloak sont ainsi conservées lors du redémarrage des conteneurs.
+
+Attention : la commande `docker compose down -v` supprime également les volumes associés et peut donc entraîner la perte des données persistées.
 
 ## Configuration centralisée
 
@@ -685,17 +996,31 @@ Les scénarios suivants ont été vérifiés :
 - indisponibilité de `ms-produits` ;
 - transmission du JWT lors des appels OpenFeign.
 
+## Tests de résilience
+
+Les scénarios suivants ont également été vérifiés :
+
+- état initial `CLOSED` ;
+- indisponibilité de `ms-produits` ;
+- passage du Circuit Breaker à `OPEN` ;
+- transition automatique vers `HALF_OPEN` ;
+- échec des appels de test et retour à `OPEN` ;
+- redémarrage de `ms-produits` ;
+- succès des appels de test ;
+- retour à l'état `CLOSED` ;
+- consultation des événements avec Actuator.
+
 ## Tests automatisés
 
-Les tests unitaires et d'intégration des microservices ont également été exécutés.
+Les tests unitaires et d'intégration des microservices ont également été exécutés avec Maven.
 
 Bilan des tests :
 
 ```text
 ms-produits  : 13 tests — 0 échec
-ms-commandes : 26 tests — 0 échec
+ms-commandes : 27 tests — 0 échec
 
-Total        : 39 tests — 0 échec
+Total        : 40 tests — 0 échec
 ```
 
 ## Codes HTTP vérifiés
@@ -751,6 +1076,8 @@ Quelques exemples :
 
 Cela permet notamment à `ms-commandes` de retourner une réponse contrôlée lorsque le service des produits n'est pas disponible.
 
+La gestion des erreurs est complétée par Resilience4j, qui protège les appels distants et évite de continuer à solliciter un service en panne lorsque le Circuit Breaker est ouvert.
+
 ---
 
 # 📮 Collection Postman
@@ -797,6 +1124,7 @@ http://localhost:8081/swagger-ui/index.html
 Les documentations OpenAPI des microservices sont exposées à travers le Gateway.
 
 ---
+
 # 🚀 Installation et lancement
 
 Le projet utilise **Docker Compose comme mode unique de démarrage et de déploiement**.
@@ -820,6 +1148,9 @@ Les services peuvent ensuite être vérifiés avec :
 ```bash
 docker compose ps
 ```
+
+---
+
 # 📊 État du projet
 
 ## ✅ TP fonctionnel
@@ -841,9 +1172,14 @@ Les principaux éléments demandés dans le TP sont réalisés :
 - [x] Pagination et tri
 - [x] Gestion des erreurs
 - [x] Gestion de l'indisponibilité de `ms-produits`
+- [x] Intégration de Resilience4j
+- [x] Circuit Breaker
+- [x] Fallback en cas d'indisponibilité
+- [x] Surveillance avec Spring Boot Actuator
 - [x] Tests unitaires et d'intégration
 - [x] Tests fonctionnels
 - [x] Tests de sécurité
+- [x] Tests de résilience
 - [x] Collection Postman
 - [x] Documentation Swagger / OpenAPI
 - [x] Documentation du projet
@@ -884,6 +1220,8 @@ Spring Cloud
 Eureka
 Config Server
 OpenFeign
+Resilience4j
+Circuit Breaker
 API Gateway
 Keycloak
 PostgreSQL
